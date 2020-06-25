@@ -1,5 +1,5 @@
 """
-Memento - Logging discord bot
+Ayumi - Discord bot
 Copyright (C) 2020 - Saphielle Akiyama | saphielle.akiyama@gmail.com
 
 This program is free software: you can redistribute it and/or modify
