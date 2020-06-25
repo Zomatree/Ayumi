@@ -1,0 +1,7 @@
+{
+    "discord":
+    {
+        "token": "your-token-here",
+        "prefix": "your-prefix-here"
+    }
+}
