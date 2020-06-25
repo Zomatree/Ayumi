@@ -47,10 +47,6 @@ class Bot(commands.Bot):
 
         self.load_extension('jishaku')
 
-    async def connect(self, *, reconnect=True):
-        self._session = aiohttp.ClientSession()
-        return await super().connect(reconnect=reconnect)
-
     # We don't want to accidentally modify those
 
     @property
@@ -65,6 +61,12 @@ class Bot(commands.Bot):
     def logger(self):
         return self._logger
 
+    # Not called by us
+    
+    async def connect(self, *, reconnect=True):
+        self._session = aiohttp.ClientSession()
+        return await super().connect(reconnect=reconnect)
+    
     async def close(self):
         await self.session.close()
         return await super().close()
