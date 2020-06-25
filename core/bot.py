@@ -43,7 +43,7 @@ class Bot(commands.Bot):
             try:
                 self.load_extension('.'.join(file.parts[:-1]) + '.' + file.stem)
             except Exception as e:
-                self._logger.error(e)
+                self.logger.error(e)
 
         self.load_extension('jishaku')
 
