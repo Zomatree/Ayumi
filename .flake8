@@ -1,0 +1,6 @@
+[flake8]
+ignore = E272 
+         E501
+         E241
+         
+exclude = __init__.py
