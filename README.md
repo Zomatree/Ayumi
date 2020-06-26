@@ -1,3 +1,2 @@
 # Ayumi
-An anime-focused discord-bot 
-Test webhook
+An anime-focused discord-bot
