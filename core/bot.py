@@ -77,13 +77,6 @@ class Bot(commands.Bot):
     async def get_context(self, message: discord.Message, *, cls: commands.Context = context.Context):
         return await super().get_context(message, cls=cls)
 
-    # Events
-
-    async def on_message(self, message):
-        if 'raise' in message.content:
-            raise TypeError('hahayes')
-        return await super().on_message(message)
-
     # Error handling
 
     @staticmethod
