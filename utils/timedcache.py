@@ -80,8 +80,8 @@ class TimedCache:
             old_val.task.cancel()
 
         timeout, final_time = self._make_delays(timeout)
-        self.storage[key] = TimedValue(value=value, expires=final_time,
-                                       task=self.loop.create_task(self._timed_del(key, timeout=timeout)))
+        coro = self._timed_del(key, timeout=timeout)
+        self.storage[key] = TimedValue(value=value, expires=final_time, task=self.loop.create_task(coro))
 
     def __delitem__(self, key: Hashable) -> None:
         self.storage[key].task.cancel()

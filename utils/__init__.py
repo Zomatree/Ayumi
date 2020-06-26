@@ -17,4 +17,4 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 """
 
 from .timedcache import TimedCache, TimedValue
-from .embed import Embed
+from .embed import Embed, codeblock

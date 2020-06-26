@@ -20,6 +20,7 @@ import pathlib
 import typing as tp
 
 from discord.ext import menus
+
 import core
 import utils
 
@@ -57,7 +58,7 @@ class Source(menus.ListPageSource):
     def format_page(self, menu: menus.MenuPages, page: tp.List[Result]):
         embed = utils.Embed(title=self.load_type)
         for ext_name, result in page:
-            embed.add_field(name=ext_name, value=embed.codeblock(result, lang='py'), inline=False)
+            embed.add_field(name=ext_name, value=utils.codeblock(result, lang='py'), inline=False)
         return embed
 
 
