@@ -18,19 +18,27 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import json
 import logging
+import os
 
 import core
 
+if __name__ == '__main__':
 
-def setup_logging():
+    # Logging
+
     logger = logging.getLogger('discord')
     logger.setLevel(logging.WARNING)
     handler = logging.FileHandler(filename='discord.log', encoding='utf-8', mode='w')
     handler.setFormatter(logging.Formatter('%(asctime)s:%(levelname)s:%(name)s: %(message)s'))
     logger.addHandler(handler)
 
+    # Jishaku env
 
-def run_bot():
+    for env in ('NO_UNDERSCORE', 'HIDE', 'RETAIN'):
+        os.environ['JISHAKU_' + env] = 'True'
+
+    # Bot
+
     with open('config.json', 'r') as f:
         config = json.load(f)
 
@@ -38,8 +46,3 @@ def run_bot():
     bot = core.Bot(command_prefix=disc['prefix'])
     bot.config = config
     bot.run(disc['token'])
-
-
-if __name__ == '__main__':
-    setup_logging()
-    run_bot()

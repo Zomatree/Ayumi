@@ -17,14 +17,14 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 """
 
 import datetime
-import pathlib
+import logging
 
 import aiohttp
 import discord
 from discord.ext import commands
-import logging
 
 import utils
+from core import context
 
 
 class Bot(commands.Bot):
@@ -39,13 +39,8 @@ class Bot(commands.Bot):
 
         self._logger = logging.getLogger('discord')
 
-        for file in pathlib.Path('./cogs').glob('**/*.py'):
-            try:
-                self.load_extension('.'.join(file.parts[:-1]) + '.' + file.stem)
-            except Exception as e:
-                self.logger.error(e)
-
-        self.load_extension('jishaku')
+        for ext in ('jishaku', 'cogs.owner.__init__'):
+            self.load_extension(ext)
 
     # We don't want to accidentally modify those
 
@@ -62,11 +57,14 @@ class Bot(commands.Bot):
         return self._logger
 
     # Not called by us
-    
+
+    async def get_context(self, message: discord.Message, *, cls: commands.Context = context.Context):
+        return await super().get_context(message, cls=cls)
+
     async def connect(self, *, reconnect=True):
         self._session = aiohttp.ClientSession()
         return await super().connect(reconnect=reconnect)
-    
+
     async def close(self):
         await self.session.close()
         return await super().close()

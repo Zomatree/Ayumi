@@ -16,5 +16,19 @@ You should have received a copy of the GNU Affero General Public License
 along with this program.  If not, see <https://www.gnu.org/licenses/>.
 """
 
-from .bot import Bot
-from .context import Context
+import discord.embeds
+import random
+
+BACKTICKS = "`" * 3
+
+
+class Embed(discord.Embed):
+    def __init__(self, **options):
+        super().__init__(**options)
+        if isinstance(self.colour, discord.embeds._EmptyEmbed):
+            self.colour = discord.Color.from_hsv(random.random(), random.uniform(0.75, 0.95), 1)
+
+    @staticmethod
+    def codeblock(text: str, *, lang: str = None):
+        """Returns a codeblock version of the string"""
+        return f"{BACKTICKS}{lang or ''}\n{text}\n{BACKTICKS}"
