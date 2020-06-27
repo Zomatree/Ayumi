@@ -50,7 +50,6 @@ class Meta(commands.Cog):
 
         source_lines = textwrap.dedent(''.join(source_lines))
         module = callback.__module__.replace('.', '/') + '.py'
-        
         github_link = f"{self.bot.config['github']['url']}{GITHUB_PATH}{module}#L{line_number}"
         
         embed = (utils.Embed(title=f"Here's the source the command named \"{target}\" !", default_inline=True)

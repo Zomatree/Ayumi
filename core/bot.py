@@ -87,7 +87,7 @@ class Bot(commands.Bot):
                  .add_field(name='Python version', value=utils.codeblock(sys.version))
                  .add_field(name='Discordpy version', value=utils.codeblock(discord.__version__)))
 
-        await self.log_webhook.send(content=f"<@{self.owner_id}>",embed=embed)
+        await self.log_webhook.send(content=f"<@{self.owner_id}>", embed=embed)
 
         for ext in ('jishaku', 'cogs.owner.__init__'):
             self.load_extension(ext)
@@ -158,4 +158,5 @@ class Bot(commands.Bot):
         return await super().get_context(message, cls=cls)
 
     async def before_invoke(self, ctx: context.Context):
+        """Typing animation before invoking anything"""
         await ctx.trigger_typing()
