@@ -58,7 +58,7 @@ class Source(menus.ListPageSource):
 
     def format_page(self, menu: menus.MenuPages, page: tp.List[Result]) -> utils.Embed:
         """Formats the page into an embed"""
-        embed = utils.Embed(title=self.load_type, color=discord.Color.orange())
+        embed = utils.Embed(title=self.load_type, color=discord.Color.orange(), default_inline=False)
 
         for ext_name, error in page:
             clean_ext_name = discord.utils.escape_markdown(ext_name)
@@ -71,7 +71,7 @@ class Source(menus.ListPageSource):
                 else:
                     error = utils.format_exception(*utils.exc_info(error))
 
-            embed.add_field(name=clean_ext_name, value=utils.codeblock(error, lang='py'), inline=False)
+            embed.add_field(name=clean_ext_name, value=utils.codeblock(error, lang='py'))
 
         return embed
 

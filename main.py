@@ -36,5 +36,8 @@ if __name__ == '__main__':
         config = json.load(f)
 
     bot = core.Bot()
+    disc = config['discord']
+
     bot._config = config
-    bot.run(config['discord']['token'])
+    bot.owner_id = int(disc['owner_id'])
+    bot.run(disc['token'])

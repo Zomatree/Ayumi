@@ -29,7 +29,7 @@ class Embed(discord.Embed):
         super().__init__(**options)
         self.timestamp = dt.datetime.now(tz=dt.timezone.utc)
 
-        self.default_inline = options.get('default_inline', False)
+        self.default_inline = options.get('default_inline', True)
 
         if isinstance(self.colour, discord.embeds._EmptyEmbed):
             self.colour = discord.Color.from_hsv(random.random(), random.uniform(0.75, 0.95), 1)

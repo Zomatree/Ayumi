@@ -17,6 +17,8 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 """
 
 import inspect
+import textwrap
+import typing as tp
 
 import discord
 from discord.ext import commands
@@ -33,10 +35,10 @@ class Meta(commands.Cog):
         self.bot = bot
 
     @commands.command()
-    async def source(self, ctx: core.Context, target: source.CommandConverter = None):
+    async def source(self, ctx: core.Context, show_full: tp.Optional[bool] = False, *, target: source.CommandConverter = None):
         """Gets the source for a command"""
         if target is None:
-            return await ctx.send("Drop a star to support my development !\n" + self.bot.config['github']['url'])
+            return await ctx.send(f"Drop a star to support my development !\n<{self.bot.config['github']['url']}>")
         
         callback = target.callback
         
@@ -46,13 +48,23 @@ class Meta(commands.Cog):
         except OSError:
             raise OSError("Sorry ! I couldn't retrieve this command's source code")
 
-        source_lines = ''.join(source_lines).split('\n')
+        source_lines = textwrap.dedent(''.join(source_lines))
         module = callback.__module__.replace('.', '/') + '.py'
         
         github_link = f"{self.bot.config['github']['url']}{GITHUB_PATH}{module}#L{line_number}"
         
-        await ctx.send(github_link)
+        embed = (utils.Embed(title=f"Here's the source the command named \"{target}\" !", default_inline=True)
+                 .add_field(name="External view", value=f"[Github]({github_link})")
+                 .add_field(name="Module", value=discord.utils.escape_markdown(module))
+                 .add_field(name="Line", value=line_number))
         
+        if show_full:
+            embed.description = utils.codeblock(source_lines[:2000], lang='py')
+            menu = utils.OnePage(embed)
+            await menu.start(ctx)
+
+        else:
+            await ctx.send(embed=embed)
 
 
 def setup(bot: core.Bot):

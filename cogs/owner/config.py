@@ -56,7 +56,7 @@ def edit(to_exec: str) -> dict:
 
 async def display(ctx: core.Context, conf: dict):
     """Sends the current config file to the owner"""
-    await ctx.author.send(utils.codeblock(utils.format_dict(conf), lang='json'))
+    await ctx.author.send(utils.codeblock(json.dumps(conf, indent=4), lang='json'))
     await ctx.send(f'Successfully {ctx.command.name}ed the config file and sent it you !')
 
 

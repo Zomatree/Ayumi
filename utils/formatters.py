@@ -30,6 +30,7 @@ from discord.ext import menus, commands
 
 TB_PATTERN = re.compile(r"File (\".+\")")
 SLASH_PATTERN = re.compile(r"/|\\")
+START_LINE_WHITESPACE = re.compile(r"^\s+")
 
 
 def exc_info(exception: Exception) -> tp.Tuple[type, Exception, types.TracebackType]:
@@ -64,31 +65,25 @@ def codeblock(text: str, *, lang: str = None) -> str:
     """Returns a codeblock version of the string"""
     return f"```{lang or ''}\n{text}\n```"
 
+# Mini paginator, NOTE: importing core causes circular imports
 
-def format_dict(dict_: dict) -> str:
-    """Returns a prettier version of the dict"""
-    return json.dumps(dict_, indent=4)
-
-
-# Mini paginator, NOTE: importing core causes cirtular imports 
 
 class OnePage(menus.Menu):
-    def __init__(self, msg: tp.Union[str, discord.Embed, dict], other: tp.Union[discord.User, discord.Member], **kwargs):
+    def __init__(self, msg: tp.Union[str, discord.Embed, dict], **kwargs):
         super().__init__(**kwargs)
         self.msg = msg
 
-    async def raise_typeerror(self, cls: type):
-        raise TypeError("Expected Embed or string, got " + cls)
-
     async def send_initial_message(self, ctx: commands.Context, channel: discord.abc.Messageable):
         msg = self.msg
-        cls = msg.__class__
-        return await {
-            discord.Embed: lambda _: channel.send(embed=msg),
-            str:           lambda _: channel.send(content=msg),
-            dict:          lambda _: channel.send(**msg)
 
-        }.get(cls, self.raise_typeerror)(cls)
+        if isinstance(msg, discord.Embed):
+            return await channel.send(embed=msg)
+        elif isinstance(msg, str):
+            return await channel.send(msg)
+        elif isinstance(msg, dict):
+            return await channel.send(**msg)
+        else:
+            raise TypeError("Expected Embed, str or dict, got " + msg.__class__.__name__)
 
     @menus.button('\U0001f512')
     async def on_close(self, payload: discord.RawReactionActionEvent):
