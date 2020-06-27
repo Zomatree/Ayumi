@@ -18,10 +18,7 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import datetime
 import inspect
-import re
 import sys
-import textwrap
-import traceback
 
 import aiohttp
 import discord
@@ -35,26 +32,40 @@ class Bot(commands.Bot):
     def __init__(self, *args, **kwargs):
         super().__init__(*args,
                          **kwargs,
+                         command_prefix=self.get_config_prefix,
                          max_messages=None,
                          fetch_offline_members=False,
                          guild_subscriptions=False,
                          allowed_mentions=discord.AllowedMentions(everyone=False, users=False, roles=False))
 
-    # We don't want to accidentally modify those
+        self._before_invoke = self.before_invoke
+
+    def get_config_prefix(self, bot, message: discord.Message):
+        return self.config['discord']['prefix']
+
+    # -- Properties -- #
 
     @property
-    def cache(self):
+    def cache(self) -> utils.TimedCache:
         return self._cache
 
     @property
-    def session(self):
+    def session(self) -> aiohttp.ClientSession:
         return self._session
 
     @property
-    def log_webhook(self):
+    def log_webhook(self) -> discord.Webhook:
         return self._log_webhook
 
-    # Start / stop
+    @property
+    def config(self) -> dict:
+        return self._config
+
+    @config.setter
+    def config(self, new_config: dict) -> None:
+        self._config = new_config
+
+    # -- Start / Stop -- #
 
     async def connect(self, *, reconnect: bool = True):
         """Used as an async alternative init"""
@@ -62,31 +73,36 @@ class Bot(commands.Bot):
         self._cache = utils.TimedCache(timeout=datetime.timedelta(hours=24))
         self._log_webhook = discord.Webhook.from_url(self.config['discord']['logger_url'],
                                                      adapter=discord.AsyncWebhookAdapter(self.session))
+        self.dispatch('startup')
+        return await super().connect(reconnect=reconnect)
+
+    async def on_startup(self):
+        await self.wait_until_ready()
+
+        embed = (utils.Embed(title="Logged in as {0.user} ({0.user.id})".format(self),
+                             color=discord.Color.green(),
+                             default_inline=False)
+
+                 .add_field(name='Platform', value=utils.codeblock(sys.platform))
+                 .add_field(name='Python version', value=utils.codeblock(sys.version))
+                 .add_field(name='Discordpy version', value=utils.codeblock(discord.__version__)))
+
+        await self.log_webhook.send(content=f"<@{self.owner_id}>",embed=embed)
 
         for ext in ('jishaku', 'cogs.owner.__init__'):
             self.load_extension(ext)
-
-        return await super().connect(reconnect=reconnect)
 
     async def close(self):
         await self.session.close()
         return await super().close()
 
-    # Custom context
+    # -- Error handling -- #
 
-    async def get_context(self, message: discord.Message, *, cls: commands.Context = context.Context):
-        return await super().get_context(message, cls=cls)
-
-    # Error handling
-
-    @staticmethod
-    def format_tb_line(line: str) -> str:
-        """Formats lines in traceback to cleanup filenames"""
-        return re.sub(r"File (\".+\")", "File \"...\"", textwrap.dedent(line))
+    # event error
 
     async def on_error(self, event_method: str, *args, **kwargs):
         """Logs errors that were raised in events"""
-        tb = '\n'.join(map(self.format_tb_line, traceback.format_exception(*sys.exc_info())))
+        tb = utils.format_exception(*sys.exc_info())
 
         embed = utils.Embed(title=event_method + ' error',
                             description=utils.codeblock(tb, lang='py'),
@@ -96,16 +112,18 @@ class Bot(commands.Bot):
         parameters = inspect.signature(coro).parameters.keys()
 
         for param, arg in zip(parameters, args):
-            embed.add_field(name='arg - ' + param, value=repr(arg), inline=False)
+            embed.add_field(name='arg - ' + param, value=utils.format_arg(arg), inline=False)
 
         for key, value in kwargs.items():
-            embed.add_field(name='kwarg - ' + key, value=repr(value), inline=False)
+            embed.add_field(name='kwarg - ' + key, value=utils.format_arg(value), inline=False)
 
         await self.log_webhook.send(embed=embed)
 
+    # command error
+
     def format_command_error(self, ctx: context.Context, exception: Exception, limit: int = None) -> utils.Embed:
-        lines = traceback.format_exception(exception.__class__, exception, exception.__traceback__, limit=limit)
-        tb = '\n'.join(map(self.format_tb_line, lines))
+        """A helper function that formats exceptions"""
+        tb = utils.format_exception(*utils.exc_info(exception), limit)  # cannot sys.exc_info can't recover it for some reason
 
         embed = utils.Embed(title=f"{ctx.qname} - {ctx.guild.name} / {ctx.channel.name} / {ctx.author}",
                             description=utils.codeblock(tb, lang='py'),
@@ -128,5 +146,16 @@ class Bot(commands.Bot):
         if cog and commands.Cog._get_overridden_method(cog.cog_command_error) is not None:
             return
 
+        exception = getattr(exception, 'original', exception)
+
         await ctx.send(embed=self.format_command_error(ctx, exception, limit=1))
         await self.log_webhook.send(embed=self.format_command_error(ctx, exception))
+
+    # -- Misc -- #
+
+    async def get_context(self, message: discord.Message, *, cls: commands.Context = context.Context):
+        """Uses our custom context"""
+        return await super().get_context(message, cls=cls)
+
+    async def before_invoke(self, ctx: context.Context):
+        await ctx.trigger_typing()

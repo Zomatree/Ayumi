@@ -2,4 +2,5 @@ discord.py[voice]
 humanize
 jikanpy
 jishaku
+psutil
 git+https://github.com/Rapptz/discord-ext-menus

@@ -19,7 +19,8 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 import pathlib
 import typing as tp
 
-from discord.ext import menus
+import discord
+from discord.ext import menus, commands
 
 import core
 import utils
@@ -27,40 +28,63 @@ import utils
 Result = tp.Tuple[str, str]
 
 
-def get_path(query: tp.Union[str, None]) -> tp.Generator[str, None, None]:
+def get_path(query: str, exclude: set = set()) -> tp.Generator[str, None, None]:
     """Yields all extensions corresponding to the query"""
     for file in pathlib.Path('./cogs').glob('**/*.py'):
         ext_path = '.'.join(file.parts[:-1]) + '.' + file.stem
-        if query is None or query in ext_path.split('.'):
+        if (query == '*' or query in ext_path.split('.')) and not exclude & {ext_path}:
             yield ext_path
 
 
-def handle(ctx: core.Context, extensions: tp.Iterable[str]) -> tp.Generator[Result, None, None]:
+def handle(func: callable, extensions: tp.Iterable[str]) -> tp.Generator[Result, None, None]:
     """Tries to load all corresponding extensions"""
     for ext in extensions:
         try:
-            ctx.command.load_type(ext)
-        except Exception as e:
-            yield ext, e
+            func(ext)
+        except Exception as error:
+            yield ext, error
         else:
             yield ext, "Success"
 
 
+EXTENSIONS_IGNORE = (commands.ExtensionAlreadyLoaded, commands.ExtensionNotLoaded,
+                     commands.NoEntryPointError, commands.ExtensionNotFound)
+
+
 class Source(menus.ListPageSource):
     def __init__(self, load_type: str, entries: tp.List[Result]):
-
-        if len(entries) < 2:
-            entries *= 2
-
-        super().__init__(entries, per_page=5)
+        super().__init__(entries, per_page=2)
         self.load_type = load_type
 
-    def format_page(self, menu: menus.MenuPages, page: tp.List[Result]):
-        embed = utils.Embed(title=self.load_type)
-        for ext_name, result in page:
-            embed.add_field(name=ext_name, value=utils.codeblock(result, lang='py'), inline=False)
+    def format_page(self, menu: menus.MenuPages, page: tp.List[Result]) -> utils.Embed:
+        """Formats the page into an embed"""
+        embed = utils.Embed(title=self.load_type, color=discord.Color.orange())
+
+        for ext_name, error in page:
+            clean_ext_name = discord.utils.escape_markdown(ext_name)
+
+            if not isinstance(error, str):
+
+                if isinstance(error, EXTENSIONS_IGNORE):  # those errors aren't worth a full traceback
+                    error = str(error)
+
+                else:
+                    error = utils.format_exception(*utils.exc_info(error))
+
+            embed.add_field(name=clean_ext_name, value=utils.codeblock(error, lang='py'), inline=False)
+
         return embed
 
 
-def setup(bot):
+async def load_all_extensions(bot: core.Bot):
+    """Loads all extensions and sends all pages in the log channel"""
+    extensions = get_path('*', {'cogs.owner.__init__'})
+    source = Source('load_extension', [*handle(bot.load_extension, extensions)])
+
+    for index in range(source.get_max_pages()):
+        page = source.format_page(None, await source.get_page(index))
+        await bot.log_webhook.send(embed=page)
+
+
+def setup(bot: core.Bot):
     pass

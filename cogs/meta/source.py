@@ -16,25 +16,21 @@ You should have received a copy of the GNU Affero General Public License
 along with this program.  If not, see <https://www.gnu.org/licenses/>.
 """
 
-import json
-import os
+import typing as tp
+
+from discord.ext import commands
 
 import core
 
-CONFIG_PATH = 'config.json'
 
-if __name__ == '__main__':
+def raise_badarg(arg: str) -> None:
+    raise commands.BadArgument(message=f"Sorry ! I Couldn't find a command named \"{arg}\" ")
 
-    # Jishaku env
 
-    for env in ('NO_UNDERSCORE', 'HIDE', 'RETAIN'):
-        os.environ['JISHAKU_' + env] = 'True'
+class CommandConverter(commands.Converter):
+    async def convert(self, ctx: core.Context, arg: str) -> tp.Union[commands.Command, None]:
+        return ctx.bot.get_command(arg) or raise_badarg(arg)
 
-    # Bot
 
-    with open(CONFIG_PATH, 'r') as f:
-        config = json.load(f)
-
-    bot = core.Bot()
-    bot._config = config
-    bot.run(config['discord']['token'])
+def setup(bot: core.Bot):
+    pass

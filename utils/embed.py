@@ -19,23 +19,22 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 import discord.embeds
 import random
 import typing as tp
+import datetime as dt
 
-BACKTICKS = "`" * 3
 MISSING_FIELD = '⚠️ **__MISSING FIELD__**'
-
-
-def codeblock(text: str, *, lang: str = None):
-    """Returns a codeblock version of the string"""
-    return f"{BACKTICKS}{lang or ''}\n{text}\n{BACKTICKS}"
 
 
 class Embed(discord.Embed):
     def __init__(self, **options):
         super().__init__(**options)
+        self.timestamp = dt.datetime.now(tz=dt.timezone.utc)
+
+        self.default_inline = options.get('default_inline', False)
+
         if isinstance(self.colour, discord.embeds._EmptyEmbed):
             self.colour = discord.Color.from_hsv(random.random(), random.uniform(0.75, 0.95), 1)
 
-    def add_field(self, *, name: tp.Any, value: tp.Any, inline=True):
+    def add_field(self, *, name: tp.Any, value: tp.Any, inline: tp.Union[bool, None] = None):
         return super().add_field(name=str(name) or MISSING_FIELD,
                                  value=str(value) or MISSING_FIELD,
-                                 inline=inline)
+                                 inline=self.default_inline if inline is None else inline)
