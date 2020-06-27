@@ -1,7 +1,11 @@
 {
-    "discord":
-    {
-        "token": "your-token-here",
-        "prefix": "your-prefix-here"
+    "discord": {
+        "token": "your-token",
+        "prefix": "prefix",
+        "logger_url": "webhook-url",
+        "owner_id": "owner-id"
+    },
+    "github": {
+        "url": "github-url"
     }
 }
