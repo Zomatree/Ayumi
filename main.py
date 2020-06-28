@@ -16,12 +16,17 @@ You should have received a copy of the GNU Affero General Public License
 along with this program.  If not, see <https://www.gnu.org/licenses/>.
 """
 
-import json
 import os
-
+import json
 import core
 
 CONFIG_PATH = 'config.json'
+
+
+def load() -> dict:  # we reuse this to edit the config, in an executor ofc, because aiofiles is dum dum
+    with open(CONFIG_PATH, 'r') as f:
+        return json.load(f)
+
 
 if __name__ == '__main__':
 
@@ -32,8 +37,9 @@ if __name__ == '__main__':
 
     # Bot
 
-    with open(CONFIG_PATH, 'r') as f:
-        config = json.load(f)
+    config = load()
+
+    # Init
 
     bot = core.Bot()
     disc = config['discord']

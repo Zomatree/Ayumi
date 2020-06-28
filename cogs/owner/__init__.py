@@ -33,7 +33,7 @@ class Owner(commands.Cog):
         self.bot = bot
         self.make_extension_commands()
         bot.loop.create_task(extension.load_all_extensions(bot))
-    
+
     async def cog_check(self, ctx: core.Context):
         """Owner only cog"""
         if await self.bot.is_owner(ctx.author):
@@ -41,7 +41,7 @@ class Owner(commands.Cog):
         raise commands.NotOwner(message="Not owner")
 
     # -- Extensions -- #
-    
+
     @commands.group(name='extension', aliases=['ext'], invoke_without_command=True)
     async def extension(self, ctx: core.Context):
         """Utils to manage extensions"""
@@ -49,10 +49,10 @@ class Owner(commands.Cog):
 
     def make_extension_commands(self):
         """Creates all extensions related commands at once"""
-        
+
         @commands.command()
         async def template(self, ctx: core.Context, query: str, *ignore: tp.Tuple[str]):
-            extensions = extension.get_path(query, set(ignore))            
+            extensions = extension.get_path(query, set(ignore))
             report = [*extension.handle(ctx.command.load_type, extensions)]
             source = extension.Source(ctx.command.load_type.__name__, report)
             menu = menus.MenuPages(source, delete_message_after=True)
@@ -69,35 +69,30 @@ class Owner(commands.Cog):
             self.extension.add_command(ext_command)
 
     # -- Config -- #
-    
+
     @commands.group(aliases=['conf'], invoke_without_command=True)
     async def config(self, ctx: core.Context):
         """Utils to manage the config file"""
         await ctx.send_help(ctx.command)
-        
+
     @config.command(aliases=['show'])
     async def display(self, ctx: core.Context):
         """Displays the json config file"""
         await ctx.author.send(utils.codeblock(utils.format_dict(self.bot.config), lang='json'))
         await ctx.send('Successfully opened the currently loaded config and sent it to you !')
-    
+
     @config.command(aliases=['refresh'])
     async def reload(self, ctx: core.Context):
         """Reloads the json config file"""
         self.bot.config = conf = await self.bot.loop.run_in_executor(None, config.load)
-        await config.display(ctx, conf)    
-    
-    @config.command(aliases=['change'])
+        await config.display(ctx, conf)
+
+    @config.command(aliases=['change', 'modify'])
     async def edit(self, ctx: core.Context, *, to_exec: str):
         """Edits the json config file"""
         self.bot.config = conf = await self.bot.loop.run_in_executor(None, config.edit, to_exec)
-        await config.display(ctx, conf)    
-    
+        await config.display(ctx, conf)
 
-    
-    
 
-        
-        
 def setup(bot: core.Bot):
     bot.add_cog(Owner(bot))

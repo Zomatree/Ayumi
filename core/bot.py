@@ -148,6 +148,9 @@ class Bot(commands.Bot):
 
         exception = getattr(exception, 'original', exception)
 
+        if isinstance(exception, commands.CommandNotFound):
+            return
+
         await ctx.send(embed=self.format_command_error(ctx, exception, limit=1))
         await self.log_webhook.send(embed=self.format_command_error(ctx, exception))
 

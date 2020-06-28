@@ -17,19 +17,12 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 """
 
 import json
-import re
 
 import core
 import main
 import utils
 
-DOT_PATTERN = re.compile(r"(.+\s?)=")
-
-
-def load() -> dict:
-    """Opens the config file and return it as a dict"""
-    with open(main.CONFIG_PATH, 'r') as f:
-        return json.load(f)  # not sure about whether open or json.load is blocking, so they both run in exec
+load = main.load   # no need for duplicates
 
 
 def edit(to_exec: str) -> dict:
@@ -42,7 +35,7 @@ def edit(to_exec: str) -> dict:
         splitted = to_exec.replace(' ', '').split('=')
         splitted[0] = "['" + splitted[0].replace('.', "']['") + "']"
 
-        to_exec = ' = '.join(splitted)
+        to_exec = '='.join(splitted)
 
     config = load()
 
