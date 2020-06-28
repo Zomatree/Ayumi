@@ -17,12 +17,15 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 """
 
 import json
+import keyword
 
 import core
 import main
 import utils
 
 load = main.load   # no need for duplicates
+
+KEYWORDS = tuple(keyword.kwlist)
 
 
 def edit(to_exec: str) -> dict:
@@ -32,7 +35,10 @@ def edit(to_exec: str) -> dict:
     """
     config = load()
 
-    exec('config' + to_exec, locals())
+    if not to_exec.startswith(KEYWORDS):
+        to_exec = 'config' + to_exec
+
+    exec(to_exec, locals())
 
     with open(main.CONFIG_PATH, 'w') as f:
         json.dump(config, f, indent=4)
@@ -43,7 +49,7 @@ def edit(to_exec: str) -> dict:
 async def display(ctx: core.Context, conf: dict):
     """Sends the current config file to the owner"""
     await ctx.author.send(utils.codeblock(json.dumps(conf, indent=4), lang='json'))
-    await ctx.send(f'Successfully {ctx.command.name}ed the config file and sent it you !')
+    await ctx.send(f'Successfully {ctx.command.name}ed the config file and sent it to you !')
 
 
 def setup(bot: core.Bot):

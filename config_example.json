@@ -3,7 +3,8 @@
         "token": "your-token",
         "prefix": "prefix",
         "logger_url": "webhook-url",
-        "owner_id": "owner-id"
+        "owner_id": "owner-id",
+        "description": "some-description-displayed-on-bootup"
     },
     "github": {
         "url": "github-url"

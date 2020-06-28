@@ -79,13 +79,17 @@ class Bot(commands.Bot):
     async def on_startup(self):
         await self.wait_until_ready()
 
+        codeblock = utils.codeblock
+        disconfig = self.config['discord']
+
         embed = (utils.Embed(title="Logged in as {0.user} ({0.user.id})".format(self),
                              color=discord.Color.green(),
                              default_inline=False)
-
-                 .add_field(name='Platform', value=utils.codeblock(sys.platform))
-                 .add_field(name='Python version', value=utils.codeblock(sys.version))
-                 .add_field(name='Discordpy version', value=utils.codeblock(discord.__version__)))
+                 .add_field(name='Description', value=codeblock(disconfig['description']))
+                 .add_field(name='Platform', value=codeblock(sys.platform))
+                 .add_field(name='Python version', value=codeblock(sys.version))
+                 .add_field(name='Discord.py version', value=codeblock(discord.__version__))
+                 .add_field(name='Default prefix', value=codeblock(disconfig['prefix'])))
 
         await self.log_webhook.send(content=f"<@{self.owner_id}>", embed=embed)
 
