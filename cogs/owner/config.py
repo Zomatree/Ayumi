@@ -30,13 +30,6 @@ def edit(to_exec: str) -> dict:
     Edits the config file according to the query, using dot or normal dict notation
     There must be a better way to do this, tho
     """
-    if not all(char in to_exec for char in ('[]')):
-
-        splitted = to_exec.replace(' ', '').split('=')
-        splitted[0] = "['" + splitted[0].replace('.', "']['") + "']"
-
-        to_exec = '='.join(splitted)
-
     config = load()
 
     exec('config' + to_exec, locals())
