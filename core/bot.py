@@ -19,6 +19,7 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 import datetime
 import inspect
 import sys
+import typing as tp
 
 import aiohttp
 import discord
@@ -40,8 +41,11 @@ class Bot(commands.Bot):
 
         self._before_invoke = self.before_invoke
 
-    def get_config_prefix(self, bot, message: discord.Message):
-        return self.config['discord']['prefix']
+    def get_config_prefix(self, bot, message: discord.Message) -> str:
+        try:
+            return self.config['discord']['prefix']
+        except KeyError:
+            return 'fallback '  # just in case I accidentally kill the config
 
     # -- Properties -- #
 
@@ -125,9 +129,10 @@ class Bot(commands.Bot):
 
     # command error
 
-    def format_command_error(self, ctx: context.Context, exception: Exception, limit: int = None) -> utils.Embed:
+    @staticmethod
+    def format_command_error(ctx: context.Context, exception: Exception, limit: int = None) -> utils.Embed:
         """A helper function that formats exceptions"""
-        tb = utils.format_exception(*utils.exc_info(exception), limit)  # cannot sys.exc_info can't recover it for some reason
+        tb = utils.format_exception(*utils.exc_info(exception), limit)  # sys.exc_info can't recover it for some reason
 
         embed = utils.Embed(title=f"{ctx.qname} - {ctx.guild.name} / {ctx.channel.name} / {ctx.author}",
                             description=utils.codeblock(tb, lang='py'),

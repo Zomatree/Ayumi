@@ -16,8 +16,25 @@ You should have received a copy of the GNU Affero General Public License
 along with this program.  If not, see <https://www.gnu.org/licenses/>.
 """
 
-from .timedcache import *
-from .embed import *
-from .formatters import *
-from .decorators import *
-from .converters import *
+import contextlib
+from discord.ext import commands
+
+DAYS = ('monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday')
+
+
+def dayconverter(arg: str):
+    """Tries to convert a string into a valid day"""
+    arg = arg.lower()
+
+    if arg in DAYS:
+        return arg
+
+    for day in DAYS:
+        if day.startswith(arg):
+            return day
+
+    if arg.isdigit():
+        with contextlib.suppress(IndexError):
+            return DAYS[int(arg) + 1]
+
+    raise commands.BadArgument(message=f"Sorry ! I wasn't able to convert \"{arg}\" into a valid weekday")

@@ -16,6 +16,7 @@ You should have received a copy of the GNU Affero General Public License
 along with this program.  If not, see <https://www.gnu.org/licenses/>.
 """
 
+import json
 import pathlib
 import typing as tp
 
@@ -55,8 +56,7 @@ class Owner(commands.Cog):
             extensions = extension.get_path(query, set(ignore))
             report = [*extension.handle(ctx.command.load_type, extensions)]
             source = extension.Source(ctx.command.load_type.__name__, report)
-            menu = menus.MenuPages(source, delete_message_after=True)
-            await menu.start(ctx)
+            await menus.MenuPages(source, delete_message_after=True).start(ctx)
 
         for name in ('load', 'reload', 'unload'):
             ext_command = template.copy()
@@ -78,7 +78,7 @@ class Owner(commands.Cog):
     @config.command(aliases=['show'])
     async def display(self, ctx: core.Context):
         """Displays the json config file"""
-        await ctx.author.send(utils.codeblock(utils.format_dict(self.bot.config), lang='json'))
+        await ctx.author.send(utils.codeblock(json.dumps(self.bot.config, indent=4), lang='json'))
         await ctx.send('Successfully opened the currently loaded config and sent it to you !')
 
     @config.command(aliases=['refresh'])

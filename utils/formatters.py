@@ -47,8 +47,8 @@ def format_tb_line(line: str) -> str:
 
 
 def format_exception(*args, **kwargs) -> str:
-    """Fully formats the exception"""
-    return '\n'.join(map(format_tb_line, traceback.format_exception(*args, **kwargs)))
+    """Formats an exception with traceback.format_exception, cleans up filenames and dedent it"""
+    return textwrap.dedent('\n'.join(map(format_tb_line, traceback.format_exception(*args, **kwargs))))
 
 
 def format_arg(arg: object) -> str:
