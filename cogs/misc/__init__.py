@@ -22,7 +22,7 @@ import random
 import async_cleverbot as ac
 import discord
 from discord.ext import commands
-
+import typing as tp
 import core
 
 
@@ -30,7 +30,7 @@ class Misc(commands.Cog):
     def __init__(self, bot: core.Bot):
         self.bot = bot
         self.cleverbot = cb = ac.Cleverbot(api_key=bot.config['travitia']['token'],
-                                      session=bot.session, context=ac.DictContext())
+                                           session=bot.session, context=ac.DictContext())
 
         cb.emotions = tuple(ac.Emotion)
 
@@ -41,6 +41,7 @@ class Misc(commands.Cog):
         bot = self.bot
         cb = self.cleverbot
 
+
         # Filtering out messages that don't start with the bot's mention
 
         for mention in (bot.user.mention + ' ', f'<@!{bot.user.id}> '):
@@ -50,15 +51,21 @@ class Misc(commands.Cog):
         else:
             return
 
-        key = ('cleverbot', msg.author.id)
-        if not (emotion := self.bot.cache.get(key)):
-            emotion = self.bot.cache.set(key, random.choice(cb.emotions),
-                                         timeout=dt.timedelta(minutes=60))
+        key = f'cleverbot {msg.author.id}'
 
-        await msg.channel.trigger_typing()
-        response = await cb.ask(query=ask, id_=msg.author.id, emotion=emotion)
+        emotion_index: tp.Optional[int] = await bot.redis.get(key)
 
-        await msg.channel.send(f"> {msg.content}\n{msg.author.mention} {response.text}")
+        if emotion_index is None:
+            emotion_index = random.randint(0, len(ac.Emotion) - 1)
+            await bot.redis.set(key, emotion_index, expire=600)
+
+        emotion = cb.emotions[int(emotion_index)]  # storing only the index is a bit lighter, I guess
+
+        async with msg.channel.typing():
+            response = await cb.ask(query=ask, id_=msg.author.id, emotion=emotion)
+
+        await msg.channel.send(f"> {msg.content}\n{msg.author.mention}, {response.text}")
+
 
 
 def setup(bot: core.Bot):

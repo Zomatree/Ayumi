@@ -27,14 +27,12 @@ MISSING_FIELD = '⚠️ **__MISSING FIELD__**'
 class Embed(discord.Embed):
     def __init__(self, **options):
         super().__init__(**options)
-        self.timestamp = dt.datetime.now(tz=dt.timezone.utc)
-
         self.default_inline = options.get('default_inline', True)
 
         if isinstance(self.colour, discord.embeds._EmptyEmbed):
             self.colour = discord.Color.from_hsv(random.random(), random.uniform(0.75, 0.95), 1)
 
-    def add_field(self, *, name: tp.Any, value: tp.Any, inline: tp.Union[bool, None] = None):
+    def add_field(self, *, name: tp.Any, value: tp.Any, inline: tp.Optional[bool] = None):
         return super().add_field(name=str(name) or MISSING_FIELD,
                                  value=str(value) or MISSING_FIELD,
                                  inline=self.default_inline if inline is None else inline)

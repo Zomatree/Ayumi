@@ -17,19 +17,13 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 """
 
 import collections.abc
-import datetime as dt
 import functools
 import typing as tp
 
 from discord.ext import commands
 
-import utils
-
 
 class Context(commands.Context):
-    def __init__(self, **attrs):
-        super().__init__(**attrs)
-        self._altered_cache_key = None
 
     @functools.cached_property
     def qname(self) -> tp.Union[str, None]:
@@ -51,15 +45,5 @@ class Context(commands.Context):
         self._altered_cache_key = key
 
     @property
-    def cache(self) -> utils.TimedCache:
-        """Returns the cache tied to the bot"""
-        return self.bot.cache
-
-    @property
-    def cached_data(self) -> tp.Union[tp.Any, None]:
-        """Tries to retrieve cached data"""
-        return self.cache.get(key=tuple(self.cache_key))
-
-    def add_to_cache(self, value: tp.Any, *, timeout: tp.Union[int, dt.timedelta] = None, key: collections.abc.Hashable = None) -> tp.Any:
-        """Sets an item into the cache using the the provided keys"""
-        return self.cache.set(key=tuple(key or self.cache_key), value=value, timeout=timeout)
+    def redis(self):
+        return self.bot.redis

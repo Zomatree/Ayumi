@@ -1,7 +1,8 @@
-discord.py[voice]
+git+https://github.com/Rapptz/discord.py@master#egg=discord.py
 humanize
 jikanpy
 jishaku
 psutil
 async_cleverbot
 git+https://github.com/Rapptz/discord-ext-menus
+aioredis

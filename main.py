@@ -42,6 +42,7 @@ if __name__ == '__main__':
     # Init
 
     bot = core.Bot()
+
     disc = config['discord']
 
     bot._config = config

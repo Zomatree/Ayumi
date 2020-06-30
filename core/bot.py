@@ -16,12 +16,13 @@ You should have received a copy of the GNU Affero General Public License
 along with this program.  If not, see <https://www.gnu.org/licenses/>.
 """
 
-import datetime
+import contextlib
+import datetime as dt
 import inspect
 import sys
-import typing as tp
 
 import aiohttp
+import aioredis
 import discord
 from discord.ext import commands
 
@@ -39,8 +40,6 @@ class Bot(commands.Bot):
                          guild_subscriptions=False,
                          allowed_mentions=discord.AllowedMentions(everyone=False, users=False, roles=False))
 
-        self._before_invoke = self.before_invoke
-
     def get_config_prefix(self, bot, message: discord.Message) -> str:
         try:
             return self.config['discord']['prefix']
@@ -50,8 +49,8 @@ class Bot(commands.Bot):
     # -- Properties -- #
 
     @property
-    def cache(self) -> utils.TimedCache:
-        return self._cache
+    def redis(self) -> aioredis.Redis:
+        return self._redis
 
     @property
     def session(self) -> aiohttp.ClientSession:
@@ -67,14 +66,15 @@ class Bot(commands.Bot):
 
     @config.setter
     def config(self, new_config: dict) -> None:
-        self._config = new_config
+        self._config = new_config  # logging ?
 
     # -- Start / Stop -- #
 
     async def connect(self, *, reconnect: bool = True):
         """Used as an async alternative init"""
         self._session = aiohttp.ClientSession()
-        self._cache = utils.TimedCache(timeout=datetime.timedelta(hours=24))
+        self._redis = await aioredis.create_redis_pool('redis://localhost')
+        self._before_invoke = self.before_invoke
         self._log_webhook = discord.Webhook.from_url(self.config['discord']['logger_url'],
                                                      adapter=discord.AsyncWebhookAdapter(self.session))
         self.dispatch('startup')
@@ -114,35 +114,21 @@ class Bot(commands.Bot):
 
         embed = utils.Embed(title=event_method + ' error',
                             description=utils.codeblock(tb, lang='py'),
-                            color=discord.Color.red())
+                            color=discord.Color.red(),
+                            default_inline=False)
 
         coro = getattr(self, event_method)
         parameters = inspect.signature(coro).parameters.keys()
 
         for param, arg in zip(parameters, args):
-            embed.add_field(name='arg - ' + param, value=utils.format_arg(arg), inline=False)
+            embed.add_field(name='arg - ' + param, value=utils.format_arg(arg))
 
         for key, value in kwargs.items():
-            embed.add_field(name='kwarg - ' + key, value=utils.format_arg(value), inline=False)
+            embed.add_field(name='kwarg - ' + key, value=utils.format_arg(value))
 
         await self.log_webhook.send(embed=embed)
 
     # command error
-
-    @staticmethod
-    def format_command_error(ctx: context.Context, exception: Exception, limit: int = None) -> utils.Embed:
-        """A helper function that formats exceptions"""
-        tb = utils.format_exception(*utils.exc_info(exception), limit)  # sys.exc_info can't recover it for some reason
-
-        embed = utils.Embed(title=f"{ctx.qname} - {ctx.guild.name} / {ctx.channel.name} / {ctx.author}",
-                            description=utils.codeblock(tb, lang='py'),
-                            color=discord.Color.red())
-
-        for arg_name, arg in zip(ctx.command.clean_params.keys(), ctx.all_args):
-            embed.add_field(name=arg_name, value=arg, inline=False)
-
-        return embed
-
     async def on_command_error(self, ctx: context.Context, exception: Exception):
         """Logs errors that were raised in commands"""
         if self.extra_events.get('on_command_error', None):
@@ -160,8 +146,21 @@ class Bot(commands.Bot):
         if isinstance(exception, commands.CommandNotFound):
             return
 
-        await ctx.send(embed=self.format_command_error(ctx, exception, limit=1))
-        await self.log_webhook.send(embed=self.format_command_error(ctx, exception))
+        tb = utils.format_exception(*utils.exc_info(exception))
+
+        embed = utils.Embed(title=f"{ctx.qname} - {ctx.guild.name} / {ctx.channel.name} / {ctx.author}",
+                            description=utils.codeblock(tb, lang='py'),
+                            color=discord.Color.red(),
+                            timestamp=dt.datetime.now(tz=dt.timezone.utc))
+
+        for arg_name, arg in zip(ctx.command.clean_params.keys(), ctx.all_args):
+            embed.add_field(name=arg_name, value=arg, inline=False)
+
+        await self.log_webhook.send(embed=embed)
+
+        await ctx.send(embed=utils.Embed(title=exception.__class__.__name__,
+                                         description=utils.codeblock(exception),
+                                         color=discord.Color.red()))
 
     # -- Misc -- #
 
@@ -171,4 +170,5 @@ class Bot(commands.Bot):
 
     async def before_invoke(self, ctx: context.Context):
         """Typing animation before invoking anything"""
-        await ctx.trigger_typing()
+        with contextlib.suppress(discord.DiscordException):
+            await ctx.trigger_typing()

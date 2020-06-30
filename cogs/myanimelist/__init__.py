@@ -42,4 +42,7 @@ class Anime(commands.Cog):
     @mal.command(aliases=['planning'])
     async def schedule(self, ctx: core.Context, day: utils.dayconverter = None):
         """Gets the anime schedule for a day in this week"""
-        resp = await self.aiojikan.schedule(day=day)
+        pass
+
+def setup(bot: core.Bot):
+    bot.add_cog(Anime(bot))

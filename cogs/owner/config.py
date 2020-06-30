@@ -19,6 +19,8 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 import json
 import keyword
 
+from jishaku import codeblocks
+
 import core
 import main
 import utils
@@ -35,10 +37,9 @@ def edit(to_exec: str) -> dict:
     """
     config = load()
 
-    if not to_exec.startswith(KEYWORDS):
-        to_exec = 'config' + to_exec
+    _, content = codeblocks.codeblock_converter(to_exec)
 
-    exec(to_exec, locals())
+    exec(content, {'config': config})
 
     with open(main.CONFIG_PATH, 'w') as f:
         json.dump(config, f, indent=4)
