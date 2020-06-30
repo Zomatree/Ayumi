@@ -16,14 +16,17 @@ You should have received a copy of the GNU Affero General Public License
 along with this program.  If not, see <https://www.gnu.org/licenses/>.
 """
 
-import collections.abc
 import functools
 import typing as tp
+import aioredis
 
 from discord.ext import commands
 
 
 class Context(commands.Context):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._altered_cache_key = None
 
     @functools.cached_property
     def qname(self) -> tp.Union[str, None]:
@@ -36,14 +39,17 @@ class Context(commands.Context):
         return args + kwargs
 
     @property
-    def cache_key(self) -> list:
-        return self._altered_cache_key or [self.qname] + self.all_args
+    def cache_key(self) -> str:
+        return ''.join(self._altered_cache_key or [self.qname] + [*map(str, self.all_args)])
 
     @cache_key.setter
-    def cache_key(self, key: collections.abc.Hashable) -> None:
+    def cache_key(self, key: str) -> None:
         """Sets another key to use for this Context"""
+        if not isinstance(key, str):
+            raise TypeError("Cache key must be a string")
+
         self._altered_cache_key = key
 
     @property
-    def redis(self):
+    def redis(self) -> aioredis.Redis:
         return self.bot.redis

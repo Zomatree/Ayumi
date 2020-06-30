@@ -66,6 +66,10 @@ class Bot(commands.Bot):
 
     @config.setter
     def config(self, new_config: dict) -> None:
+
+        if not isinstance(new_config, dict):
+            raise TypeError("New config must be a dict")
+
         self._config = new_config  # logging ?
 
     # -- Start / Stop -- #
@@ -97,7 +101,7 @@ class Bot(commands.Bot):
 
         await self.log_webhook.send(content=f"<@{self.owner_id}>", embed=embed)
 
-        for ext in ('jishaku', 'cogs.owner.__init__'):
+        for ext in ('jishaku', 'cogs.owner'):
             self.load_extension(ext)
 
     async def close(self):

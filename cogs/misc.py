@@ -16,7 +16,6 @@ You should have received a copy of the GNU Affero General Public License
 along with this program.  If not, see <https://www.gnu.org/licenses/>.
 """
 
-import datetime as dt
 import random
 
 import async_cleverbot as ac
@@ -34,22 +33,26 @@ class Misc(commands.Cog):
 
         cb.emotions = tuple(ac.Emotion)
 
+    # -- Cleverbot -- #
+
     @commands.Cog.listener('on_message')
-    async def cleverbot_listener(self, msg: discord.Message):
+    async def cleverbot_listener(self, msg: discord.Message, *, ask: str = ''):
         """Handles the implementation for cleverbot"""
         content = msg.content
         bot = self.bot
         cb = self.cleverbot
 
-
         # Filtering out messages that don't start with the bot's mention
-
-        for mention in (bot.user.mention + ' ', f'<@!{bot.user.id}> '):
-            if content.startswith(mention):
-                ask = content[len(mention):]
-                break
-        else:
+        if msg.author.bot:
             return
+
+        if not ask:
+            for mention in (bot.user.mention + ' ', f'<@!{bot.user.id}> '):
+                if content.startswith(mention):
+                    ask = content[len(mention):]
+                    break
+            else:
+                return
 
         key = f'cleverbot {msg.author.id}'
 
@@ -66,6 +69,10 @@ class Misc(commands.Cog):
 
         await msg.channel.send(f"> {msg.content}\n{msg.author.mention}, {response.text}")
 
+    @commands.command()
+    async def ask(self, ctx: core.Context, *, text: str):
+        """Ask something, you can also mention me and write a message"""
+        await self.cleverbot_listener(ctx.message, ask=text)
 
 
 def setup(bot: core.Bot):

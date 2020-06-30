@@ -26,16 +26,27 @@ from discord.ext import commands
 import core
 import utils
 
-from . import source
 
 GITHUB_PATH = '/blob/master/'
+
+
+class CommandConverter(commands.Converter):
+    async def convert(self, ctx: core.Bot, arg: str):
+        if c := ctx.bot.get_command(arg.lower()):
+            return c
+
+        else:
+            raise commands.BadArgument(f"Sorry ! I couldn't find the command named \"{arg}\"")
+
 
 class Meta(commands.Cog):
     def __init__(self, bot: core.Bot):
         self.bot = bot
 
-    @commands.command()
-    async def source(self, ctx: core.Context, show_full: tp.Optional[bool] = False, *, target: source.CommandConverter = None):
+    @commands.command(aliases=['src'])
+    @commands.max_concurrency(1, commands.BucketType.user)
+    async def source(self, ctx: core.Context, show_full: tp.Optional[bool] = True, *,
+                     target: CommandConverter = None):
         """Gets the source for a command"""
         if target is None:
             return await ctx.send(f"Drop a star to support my development !\n<{self.bot.config['github']['url']}>")
@@ -49,7 +60,9 @@ class Meta(commands.Cog):
             raise commands.BadArgument("Sorry ! I couldn't retrieve this command's source code")
 
         source_lines = textwrap.dedent(''.join(source_lines))
+
         module = callback.__module__.replace('.', '/') + '.py'
+
         github_link = f"{self.bot.config['github']['url']}{GITHUB_PATH}{module}#L{line_number}"
 
         embed = (utils.Embed(title=f"Here's the source the command named \"{target}\" !", default_inline=True)
@@ -58,9 +71,8 @@ class Meta(commands.Cog):
                  .add_field(name="Line", value=line_number))
 
         if show_full:
-            embed.description = utils.codeblock(source_lines[:2000], lang='py')
-            menu = utils.OnePage(embed)
-            await menu.start(ctx)
+            src = utils.codeblock(source_lines[:2000], lang='py')
+            await utils.OnePage({'embed': embed, 'content': src}).start(ctx)
 
         else:
             await ctx.send(embed=embed)

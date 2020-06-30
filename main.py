@@ -23,7 +23,7 @@ import core
 CONFIG_PATH = 'config.json'
 
 
-def load() -> dict:  # we reuse this to edit the config, in an executor ofc, because aiofiles is dum dum
+def load_config() -> dict:  # we reuse this to edit the config, in an executor ofc, because aiofiles is dum dum
     with open(CONFIG_PATH, 'r') as f:
         return json.load(f)
 
@@ -37,7 +37,7 @@ if __name__ == '__main__':
 
     # Bot
 
-    config = load()
+    config = load_config()
 
     # Init
 
