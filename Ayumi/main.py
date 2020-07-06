@@ -17,15 +17,15 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 """
 
 import os
-import json
+import orjson
 import core
 
 CONFIG_PATH = 'config.json'
 
 
-def load_config() -> dict:  # we reuse this to edit the config, in an executor ofc, because aiofiles is dum dum
+def load_config() -> dict:  # we reuse this to edit the config
     with open(CONFIG_PATH, 'r') as f:
-        return json.load(f)
+        return orjson.loads(f.read())
 
 
 if __name__ == '__main__':

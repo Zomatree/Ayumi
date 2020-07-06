@@ -1,4 +1,4 @@
 *.log
 *.pyc
 *.json
-!config_example.json
+!Ayumi/config_example.json

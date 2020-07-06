@@ -16,14 +16,14 @@ You should have received a copy of the GNU Affero General Public License
 along with this program.  If not, see <https://www.gnu.org/licenses/>.
 """
 
+import sys
+import inspect
 import contextlib
 import datetime as dt
-import inspect
-import sys
 
 import aiohttp
-import aioredis
 import discord
+import aioredis
 from discord.ext import commands
 
 import utils
@@ -76,33 +76,50 @@ class Bot(commands.Bot):
 
     async def connect(self, *, reconnect: bool = True):
         """Used as an async alternative init"""
+
         self._session = aiohttp.ClientSession()
+
         self._redis = await aioredis.create_redis_pool('redis://localhost')
+
         self._before_invoke = self.before_invoke
+
         self._log_webhook = discord.Webhook.from_url(self.config['discord']['logger_url'],
                                                      adapter=discord.AsyncWebhookAdapter(self.session))
+
         self.dispatch('startup')
+
         return await super().connect(reconnect=reconnect)
 
     async def on_startup(self):
+
+        self.load_extension('jishaku')
+
         await self.wait_until_ready()
 
         codeblock = utils.codeblock
+
         disconfig = self.config['discord']
 
         embed = (utils.Embed(title="Logged in as {0.user} ({0.user.id})".format(self),
+
                              color=discord.Color.green(),
+
                              default_inline=False)
+
                  .add_field(name='Description', value=codeblock(disconfig['description']))
+
                  .add_field(name='Platform', value=codeblock(sys.platform))
+
                  .add_field(name='Python version', value=codeblock(sys.version))
+
                  .add_field(name='Discord.py version', value=codeblock(discord.__version__))
+
                  .add_field(name='Default prefix', value=codeblock(disconfig['prefix'])))
+
 
         await self.log_webhook.send(content=f"<@{self.owner_id}>", embed=embed)
 
-        for ext in ('jishaku', 'cogs.owner'):
-            self.load_extension(ext)
+        self.load_extension('cogs.owner')
 
     async def close(self):
         await self.session.close()
@@ -114,14 +131,19 @@ class Bot(commands.Bot):
 
     async def on_error(self, event_method: str, *args, **kwargs):
         """Logs errors that were raised in events"""
+
         tb = utils.format_exception(*sys.exc_info())
 
         embed = utils.Embed(title=event_method + ' error',
+
                             description=utils.codeblock(tb, lang='py'),
+
                             color=discord.Color.red(),
+
                             default_inline=False)
 
         coro = getattr(self, event_method)
+
         parameters = inspect.signature(coro).parameters.keys()
 
         for param, arg in zip(parameters, args):
@@ -133,8 +155,10 @@ class Bot(commands.Bot):
         await self.log_webhook.send(embed=embed)
 
     # command error
+
     async def on_command_error(self, ctx: context.Context, exception: Exception):
         """Logs errors that were raised in commands"""
+
         if self.extra_events.get('on_command_error', None):
             return
 
@@ -142,6 +166,7 @@ class Bot(commands.Bot):
             return
 
         cog = ctx.cog
+
         if cog and commands.Cog._get_overridden_method(cog.cog_command_error) is not None:
             return
 
@@ -153,8 +178,11 @@ class Bot(commands.Bot):
         tb = utils.format_exception(*utils.exc_info(exception))
 
         embed = utils.Embed(title=f"{ctx.qname} - {ctx.guild.name} / {ctx.channel.name} / {ctx.author}",
+
                             description=utils.codeblock(tb, lang='py'),
+
                             color=discord.Color.red(),
+
                             timestamp=dt.datetime.now(tz=dt.timezone.utc))
 
         for arg_name, arg in zip(ctx.command.clean_params.keys(), ctx.all_args):
@@ -163,7 +191,9 @@ class Bot(commands.Bot):
         await self.log_webhook.send(embed=embed)
 
         await ctx.send(embed=utils.Embed(title=exception.__class__.__name__,
+
                                          description=utils.codeblock(exception),
+
                                          color=discord.Color.red()))
 
     # -- Misc -- #

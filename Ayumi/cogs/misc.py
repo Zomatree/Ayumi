@@ -21,11 +21,15 @@ import random
 import async_cleverbot as ac
 import discord
 from discord.ext import commands
-import typing as tp
+
 import core
 
 
 class Misc(commands.Cog):
+    """
+    Miscellaneous commands that don't belong anywhere in particular
+    """
+    
     def __init__(self, bot: core.Bot):
         self.bot = bot
         self.cleverbot = cb = ac.Cleverbot(api_key=bot.config['travitia']['token'],
@@ -36,7 +40,7 @@ class Misc(commands.Cog):
     # -- Cleverbot -- #
 
     @commands.Cog.listener('on_message')
-    async def cleverbot_listener(self, msg: discord.Message, *, ask: str = ''):
+    async def cleverbot_listener(self, msg: discord.Message, *, question: str = ''):
         """Handles the implementation for cleverbot"""
         content = msg.content
         bot = self.bot
@@ -46,17 +50,17 @@ class Misc(commands.Cog):
         if msg.author.bot:
             return
 
-        if not ask:
+        if not question:
             for mention in (bot.user.mention + ' ', f'<@!{bot.user.id}> '):
                 if content.startswith(mention):
-                    ask = content[len(mention):]
+                    question = content[len(mention):]
                     break
             else:
                 return
 
         key = f'cleverbot {msg.author.id}'
 
-        emotion_index: tp.Optional[int] = await bot.redis.get(key)
+        emotion_index = await bot.redis.get(key)
 
         if emotion_index is None:
             emotion_index = random.randint(0, len(ac.Emotion) - 1)
@@ -65,14 +69,14 @@ class Misc(commands.Cog):
         emotion = cb.emotions[int(emotion_index)]  # storing only the index is a bit lighter, I guess
 
         async with msg.channel.typing():
-            response = await cb.ask(query=ask, id_=msg.author.id, emotion=emotion)
+            response = await cb.ask(query=question, id_=msg.author.id, emotion=emotion)
 
-        await msg.channel.send(f"> {msg.content}\n{msg.author.mention}, {response.text}")
+        await msg.channel.send(f"> {question}\n{msg.author.mention}, {response.text}")
 
     @commands.command()
-    async def ask(self, ctx: core.Context, *, text: str):
+    async def ask(self, ctx: core.Context, *, question: str):
         """Ask something, you can also mention me and write a message"""
-        await self.cleverbot_listener(ctx.message, ask=text)
+        await self.cleverbot_listener(ctx.message, question=question)
 
 
 def setup(bot: core.Bot):

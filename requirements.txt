@@ -1,8 +1,10 @@
 git+https://github.com/Rapptz/discord.py@master#egg=discord.py
+git+https://github.com/Rapptz/discord-ext-menus
+
+aioredis
+async_cleverbot
 humanize
 jikanpy
 jishaku
+orjson
 psutil
-async_cleverbot
-git+https://github.com/Rapptz/discord-ext-menus
-aioredis

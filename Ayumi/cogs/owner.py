@@ -31,9 +31,12 @@ import utils
 ExtensionResult = tp.Tuple[str, str]
 
 
-IGNORED_COG = {'cogs.owner'}
-EXTENSIONS_IGNORE = (commands.ExtensionAlreadyLoaded, commands.ExtensionNotLoaded,
-                     commands.NoEntryPointError, commands.ExtensionNotFound)
+IGNORED_COGS = {'cogs.owner'}
+
+EXTENSIONS_IGNORE = (commands.ExtensionAlreadyLoaded, 
+                     commands.ExtensionNotLoaded,
+                     commands.NoEntryPointError, 
+                     commands.ExtensionNotFound)
 
 
 class ExtensionSource(menus.ListPageSource):
@@ -43,9 +46,11 @@ class ExtensionSource(menus.ListPageSource):
 
     def format_page(self, menu: menus.MenuPages, page: tp.List[ExtensionResult]) -> utils.Embed:
         """Formats the page into an embed"""
+
         embed = utils.Embed(title=self.load_type, color=discord.Color.orange(), default_inline=False)
 
         for ext_name, error in page:
+
             clean_ext_name = discord.utils.escape_markdown(ext_name)
 
             if not isinstance(error, str):
@@ -54,23 +59,30 @@ class ExtensionSource(menus.ListPageSource):
                     error = str(error)
 
                 else:
-                    error = utils.format_exception(*utils.exc_info(error))
+                    error = utils.format_exception(*utils.exc_info(error), limit=4)
 
-            embed.add_field(name=clean_ext_name, value=utils.codeblock(error, lang='py'))
+            embed.add_field(name=clean_ext_name, value=utils.codeblock(error, lang='py')[:1024])
 
         return embed
+
+
 
 
 class Owner(commands.Cog):
     def __init__(self, bot: core.Bot):
         self.bot = bot
+
         self.make_extension_commands()
+
         bot.loop.create_task(self.load_all_extensions())
+
 
     async def cog_check(self, ctx: core.Context):
         """Owner only cog"""
+
         if await self.bot.is_owner(ctx.author):
             return True
+
         raise commands.NotOwner(message="Not owner")
 
     # -- Extensions -- #
@@ -78,10 +90,15 @@ class Owner(commands.Cog):
     @staticmethod
     def get_extension_path(query: str, exclude: set = set()) -> tp.Generator[str, None, None]:
         """Yields all extensions corresponding to the query"""
+
         for file in pathlib.Path('./cogs').glob('**/*.py'):
+
             ext_path = '.'.join(file.parts[:-1]) + '.' + file.stem
+
             if (query == '*' or query in ext_path.split('.')) and not exclude & {ext_path}:
+
                 yield ext_path
+
 
     @staticmethod
     def handle_extension(func: callable, extensions: tp.Iterable[str]
@@ -90,21 +107,28 @@ class Owner(commands.Cog):
         for ext in extensions:
             try:
                 func(ext)
+
             except Exception as error:
                 yield ext, error
+
             else:
                 yield ext, "Success"
 
     async def load_all_extensions(self) -> None:
         """Loads all extensions and sends all pages in the log channel"""
-        extensions = self.get_extension_path('*', IGNORED_COG)
+
+        extensions = self.get_extension_path('*', IGNORED_COGS)
+
         source = ExtensionSource('load_extension', [*self.handle_extension(self.bot.load_extension, extensions)])
 
         for index in range(source.get_max_pages()):
+
             page = source.format_page(None, await source.get_page(index))
+
             await self.bot.log_webhook.send(embed=page)
 
-    @commands.group(name='extension', aliases=['ext'], invoke_without_command=True)
+
+    @utils.group(name='extension', aliases=['ext'], invoke_without_command=True, only_sends_help=True)
     async def extension(self, ctx: core.Context):
         """Utils to manage extensions"""
         await ctx.send_help(ctx.command)
@@ -112,9 +136,9 @@ class Owner(commands.Cog):
     def make_extension_commands(self):
         """Creates all extensions related commands at once"""
 
-        @commands.command()
+        @utils.command()
         async def template(self, ctx: core.Context, query: str, *ignore: tp.Tuple[str]):
-            extensions = self.get_extension_path(query, IGNORED_COG | set(ignore))
+            extensions = self.get_extension_path(query, IGNORED_COGS | set(ignore))
             report = [*self.handle_extension(ctx.command.load_type, extensions)]
             source = ExtensionSource(ctx.command.load_type.__name__, report)
             await menus.MenuPages(source, delete_message_after=True).start(ctx)
@@ -131,7 +155,7 @@ class Owner(commands.Cog):
 
     # -- Config -- #
 
-    @commands.group(aliases=['conf'], invoke_without_command=True)
+    @utils.group(aliases=['conf'], invoke_without_command=True, only_sends_help=True)
     async def config(self, ctx: core.Context):
         """Utils to manage the config file"""
         await ctx.send_help(ctx.command)
