@@ -20,6 +20,7 @@ import json
 import pathlib
 import typing as tp
 
+import orjson
 import discord
 import jishaku.codeblocks
 from discord.ext import commands, menus
@@ -138,9 +139,13 @@ class Owner(commands.Cog):
 
         @utils.command()
         async def template(self, ctx: core.Context, query: str, *ignore: tp.Tuple[str]):
+
             extensions = self.get_extension_path(query, IGNORED_COGS | set(ignore))
+
             report = [*self.handle_extension(ctx.command.load_type, extensions)]
+
             source = ExtensionSource(ctx.command.load_type.__name__, report)
+
             await menus.MenuPages(source, delete_message_after=True).start(ctx)
 
         for name in ('load', 'reload', 'unload'):
@@ -163,7 +168,12 @@ class Owner(commands.Cog):
     @config.command(aliases=['show'])
     async def display(self, ctx: core.Context):
         """Displays the json config file"""
+
+        json = orjson.dumps(self.bot.config, indent=4)
+
+
         await ctx.author.send(utils.codeblock(json.dumps(self.bot.config, indent=4), lang='json'))
+
         await ctx.send('Successfully opened the currently loaded config and sent it to you !')
 
     @staticmethod

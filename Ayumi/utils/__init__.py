@@ -16,14 +16,14 @@ You should have received a copy of the GNU Affero General Public License
 along with this program.  If not, see <https://www.gnu.org/licenses/>.
 """
 
-import functools
-import random
 import re
-import textwrap
-import traceback
-import itertools
-import inspect
 import types
+import random
+import inspect
+import textwrap
+import functools
+import itertools
+import traceback
 import typing as tp
 
 import discord
@@ -52,6 +52,7 @@ def format_tb_line(line: str) -> str:
 
 def format_exception(*args, **kwargs) -> str:
     """Formats an exception with traceback.format_exception, cleans up filenames and dedent it"""
+ 
     tb_lines = traceback.format_exception(*args, **kwargs)
 
     formatted_lines = '\n'.join(map(format_tb_line, tb_lines))
@@ -62,6 +63,7 @@ def format_exception(*args, **kwargs) -> str:
 def format_arg(arg: object) -> str:
     """Returns the object's type along with it's module"""
     cls = arg.__class__
+ 
     return cls.__name__ + " from module: " + cls.__module__
 
 
@@ -101,6 +103,7 @@ MISSING_FIELD = '⚠️ **__MISSING FIELD__**'
 class Embed(discord.Embed):
     def __init__(self, **options):
         super().__init__(**options)
+ 
         self.default_inline = options.get('default_inline', True)
 
         if isinstance(self.colour, discord.Embed.Empty.__class__):
@@ -113,7 +116,9 @@ class Embed(discord.Embed):
 
     def add_field(self, *, name: tp.Any, value: tp.Any, inline: tp.Optional[bool] = None):
         return super().add_field(name=self.check_empty_string(name),
+ 
                                  value=self.check_empty_string(value),
+ 
                                  inline=self.default_inline if inline is None else inline)
 
 
@@ -131,6 +136,7 @@ def multiple_cooldowns(*cooldowns: tp.Tuple[commands.CooldownMapping]):
 
         @functools.wraps(func)
         async def wrapped(*args, **kwargs):
+ 
             ctx = args[1] if isinstance(args[0], commands.Cog) else args[0]
 
             for cd in func.__multiple_cooldowns__:
@@ -223,18 +229,29 @@ def command(name=None, cls=None, **attrs):
 class Group(AyumiCommand, commands.Group):
     """Copypaste of the superclass to use our subclassed stuff"""
     def group(self, *args, **kwargs):
+
         def decorator(func):
+
             kwargs.setdefault('parent', self)
+
             result = group(*args, **kwargs)(func)
+
             self.add_command(result)
+
             return result
+
         return decorator
 
     def command(self, *args, **kwargs):
+
         def decorator(func):
+
             kwargs.setdefault('parent', self)
+
             result = command(*args, **kwargs)(func)
+
             self.add_command(result)
+
             return result
 
         return decorator
@@ -290,6 +307,7 @@ class LiteralConverter:
 
 
 class CommandConverter(commands.Converter):
+
     async def convert(self, ctx: commands.Bot, arg: str):
         if co := ctx.bot.get_command(arg.lower()):
             return co
@@ -317,6 +335,7 @@ def coalesce(*fns, ignored_exc=Exception, default=None):
     for fn in fns:
         try:
             return fn()
+
         except ignored_exc:
             pass
 

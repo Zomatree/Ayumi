@@ -155,7 +155,7 @@ class HelpCommand(commands.MinimalHelpCommand):
         await self.display_grouped_menu(title, cog)
 
 
-    async def send_group_help(self, group: commands.Group):        
+    async def send_group_help(self, group: commands.Group):
         title = "Here are {0.qualified_name}'s subcommands"
         await self.display_grouped_menu(title, group)
 
@@ -175,7 +175,9 @@ class Meta(commands.Cog):
     """
     def __init__(self, bot):
         self._original_help_command = bot.help_command
+
         bot.help_command = HelpCommand()
+
         bot.help_command.cog = self
 
     def cog_unload(self):

@@ -59,11 +59,16 @@ class JikanAnimeSource(menus.ListPageSource):
 
     @staticmethod
     def format_named_data(data: tp.List[dict]):
-        return '\n'.join([f"[{d['name']}]({d['url']})" for d in data])
+        return '\n'.join([f"[{d.get('name')}]({d.get('url')})" for d in data])
 
     @staticmethod
     def format_date(data: str):
-        return humanize.naturaldate(dt.datetime.fromisoformat(data))
+        try:
+            iso = dt.datetime.fromisoformat(data)
+            return humanize.naturaldate(iso)
+
+        except ValueError:
+            return data
 
     def format_page(self, menu: menus.Menu, anime: dict):
         """An extremely lazy way to put everything together"""
@@ -73,43 +78,36 @@ class JikanAnimeSource(menus.ListPageSource):
         if score := anime.get('score'):
             title.append(f"Score : {score}")
 
+
         embed = utils.Embed(title=' | '.join(title),
+
                             url=anime.get('url'),
+
                             description=(anime.get('synopsis') or 'Not found')[:2000])  # might get none
 
-        if thumbnail := anime.get('image_url'):
-            embed.set_thumbnail(url=thumbnail)
-
-        if genres := anime.get('genres'):
-            embed.add_field(name='Genres', value=self.format_named_data(genres))
-
-        if producers := anime.get('producers'):
-            embed.add_field(name='Producers', value=self.format_named_data(producers))
-
-        if licensors := anime.get('licensors'):
-            embed.add_field(name='Licensors', value='-' + '\n-'.join(licensors))
-
-        if rank := anime.get('rank'):
-            embed.add_field(name='Rank', value=rank)
-
-        if start_date := anime.get('start_date'):
-            embed.add_field(name='Start date', value=self.format_date(start_date))
-
-        if end_date := anime.get('end_date'):
-            embed.add_field(name='End date', value=self.format_date(end_date))
-
         embed.set_footer(text=self.footer)
+
+        funcs = (
+            lambda: embed.set_thumbnail(url=anime['image_url']),
+            lambda: embed.add_field(name='Genres', value=self.format_named_data(anime['genres'])),
+            lambda: embed.add_field(name='Producers', value=self.format_named_data(anime['producers'])),
+            lambda: embed.add_field(name='Licensors', value='-' + '\n-'.join(anime['licensors'])),
+            lambda: embed.add_field(name='Rank', value=anime['rank']),
+            lambda: embed.add_field(name='Start date', value=self.format_date(anime['start_date'])),
+            lambda: embed.add_field(name='End date', value=self.format_date(anime['end_date']))
+        )
+
+        for fn in funcs:
+            try:
+                fn()
+            except KeyError:
+                pass
 
         return embed
 
 
-class Anime(commands.Cog):
-    """
-    Anime-related commands,
-    Please note that those most of them 
-    are api-dependant and might randomly 
-    be down for an undefined period of time
-    """
+class MyAnimeList(commands.Cog):
+    """The category containing all my anime list related commands"""
 
     def __init__(self, bot: core.Bot):
         self.bot = bot
@@ -125,8 +123,16 @@ class Anime(commands.Cog):
 
     @utils.group(invoke_without_command=True)
     async def mal(self, ctx: core.Context):
-        """My anime list related commands"""
+        """
+        My anime list-related commands,
+        Please note that those most of them
+        are api-dependant and might randomly
+        be down for an undefined period of time
+        """
         await ctx.send_help(ctx.command)
+
+    
+
 
     # TODO : Finish covering jikan's api and refactor the commands
 
@@ -139,9 +145,15 @@ class Anime(commands.Cog):
 
         else:
             data = await self.aiojikan.schedule(day)
-            await ctx.redis.set(f"{ctx.qname} {day}", orjson.dumps(data), expire=43200)
+
+            key = f"{ctx.qname} {day}"
+
+            str_data = orjson.dumps(data)
+
+            await ctx.redis.set(key, str_data, expire=43200)
 
         if not (anime_data := data.get(day)):
+
             raise commands.BadArgument("Sorry ! The api I'm communicating with seems to be down")
 
         source = JikanAnimeSource(f"Planning for {day.capitalize()}",
@@ -154,7 +166,14 @@ class Anime(commands.Cog):
     @mal.group(name='schedule', aliases=['planning'], invoke_without_command=True)
     async def mal_schedule(self, ctx: core.Context):
         """Gets the anime schedule for today, or another day in the week"""
-        await self._mal_schedule_handler(ctx, dt.datetime.today().strftime('%A').lower())  # .lower for cache key
+
+        today = dt.datetime.today()
+
+        curr_day = today.strftime('%A')
+
+        lower = curr_day.lower()
+
+        await self._mal_schedule_handler(ctx, lower)
 
     @mal_schedule.command(name='today', aliases=['now'])
     async def mal_schedule_today(self, ctx: core.Context):
@@ -176,12 +195,16 @@ class Anime(commands.Cog):
 
         else:
             data = await self.aiojikan.season(year=year, season=season)
-            await ctx.redis.set(ctx.cache_key, orjson.dumps(data), expire=43200)
+
+            str_data = orjson.dumps(data)
+
+            await ctx.redis.set(ctx.cache_key, str_data, expire=43200)
 
         if not (anime_data := data.get('anime')):
             raise commands.BadArgument("Sorry ! The api I'm communicating with seems to be down")
 
-        source = JikanAnimeSource(f"Planning for {season} - {year}", entries=anime_data,
+        source = JikanAnimeSource(f"Planning for {season} - {year}",
+                                  entries=anime_data,
                                   is_nsfw=ctx.channel.is_nsfw())
 
         menu = menus.MenuPages(source, delete_message_after=True)
@@ -203,11 +226,16 @@ class Anime(commands.Cog):
         """Adds a subcommand corresponding to each season of the year"""
         for season in utils.SEASONS.values():
             @self.mal_season.command(name=season,
+
                                      help=f"Shows the anime planning for a {season} of this year, or another",
+
                                      example_args=[tuple(range(2000, dt.datetime.now().year))])
 
             async def mal_season_template(ctx: core.Context, year: tp.Optional[int] = None):
-                await self._mal_season_handler(ctx, ctx.cname, year or dt.datetime.now().year)
+
+                year = year or dt.datetime.now().year
+
+                await self._mal_season_handler(ctx, ctx.cname, year)
 
     @mal_season.command(name='later', cooldown_after_parsing=True)
     async def mal_season_later(self, ctx: core.Context):
@@ -234,7 +262,7 @@ class Anime(commands.Cog):
     # Top subcommands
     async def _mal_top_handler(self, ctx: core.Context, media: tp.Literal['anime', 'manga'], page: int):
         if raw_data := await ctx.redis.get(ctx.cache_key):
-            data = await utils.executor_json_loads(raw_data)
+            data = orjson.loads(raw_data)
 
         else:
             data = await self.aiojikan.top(type=media, page=page)
@@ -249,7 +277,7 @@ class Anime(commands.Cog):
         menu = menus.MenuPages(source, delete_message_after=True)
         await menu.start(ctx, wait=True)
 
-    @mal.group(name='top', only_sends_help=True)
+    @mal.group(name='top', only_sends_help=True, invoke_without_command=True)
     async def mal_top(self, ctx: core.Context):
         """Gets the current top animes or manga on my anime list"""
         await ctx.send_help(ctx.command)
@@ -298,4 +326,4 @@ class Anime(commands.Cog):
 
 
 def setup(bot: core.Bot):
-    bot.add_cog(Anime(bot))
+    bot.add_cog(MyAnimeList(bot))
