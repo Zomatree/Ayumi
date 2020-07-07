@@ -16,17 +16,16 @@ You should have received a copy of the GNU Affero General Public License
 along with this program.  If not, see <https://www.gnu.org/licenses/>.
 """
 
-import json
 import pathlib
 import typing as tp
 
-import orjson
 import discord
 import jishaku.codeblocks
 from discord.ext import commands, menus
 
 import core
 import main
+import orjson
 import utils
 
 ExtensionResult = tp.Tuple[str, str]
@@ -34,9 +33,9 @@ ExtensionResult = tp.Tuple[str, str]
 
 IGNORED_COGS = {'cogs.owner'}
 
-EXTENSIONS_IGNORE = (commands.ExtensionAlreadyLoaded, 
+EXTENSIONS_IGNORE = (commands.ExtensionAlreadyLoaded,
                      commands.ExtensionNotLoaded,
-                     commands.NoEntryPointError, 
+                     commands.NoEntryPointError,
                      commands.ExtensionNotFound)
 
 
@@ -160,48 +159,51 @@ class Owner(commands.Cog):
 
     # -- Config -- #
 
-    @utils.group(aliases=['conf'], invoke_without_command=True, only_sends_help=True)
+    @utils.group(invoke_without_command=True)
     async def config(self, ctx: core.Context):
-        """Utils to manage the config file"""
-        await ctx.send_help(ctx.command)
-
-    @config.command(aliases=['show'])
-    async def display(self, ctx: core.Context):
         """Displays the json config file"""
 
-        json = orjson.dumps(self.bot.config, indent=4)
+        encoded = orjson.dumps(self.bot.config, option=orjson.OPT_INDENT_2)
 
+        config = encoded.decode('utf-8')
 
-        await ctx.author.send(utils.codeblock(json.dumps(self.bot.config, indent=4), lang='json'))
+        codeblock = utils.codeblock(config, lang='json')
+
+        await ctx.author.send(codeblock)
 
         await ctx.send('Successfully opened the currently loaded config and sent it to you !')
 
-    @staticmethod
-    async def display_config(ctx: core.Context, conf: dict):
-        """Sends the current config file to the owner"""
-        await ctx.author.send(utils.codeblock(json.dumps(conf, indent=4), lang='json'))
-        await ctx.send(f'Successfully {ctx.command.name}ed the config file and sent it to you !')
+    @config.command(name='edit')
+    async def config_edit(self, ctx: core.Context, *, exec_string: str):
+        """Edits the config file"""
 
-    @config.command(aliases=['refresh'])
-    async def reload(self, ctx: core.Context):
-        """Reloads the json config file"""
-        self.bot.config = conf = await ctx.bot.loop.run_in_executor(None, main.load_config)
-        await self.display_config(ctx, conf)
+        new_dict = self.bot.config.copy()
 
-    @config.command(aliases=['change', 'modify'])
-    async def edit(self, ctx: core.Context, *, to_exec: str):
-        """Edits the json config file"""
+        env = {'config': new_dict}
 
-        config = main.load_config()
+        exec(exec_string, env)
+        
+        new_config = env['config']
 
-        _, content = jishaku.codeblocks.codeblock_converter(to_exec)
+        if not isinstance(new_config, dict):
+            raise commands.BadArgument(message='The new config must be a dict not ' + new_config.__class__.__name__)
 
-        exec(content, {'config': config})
+        json = orjson.dumps(new_config, option=orjson.OPT_INDENT_2).decode('utf-8')
 
-        with open(main.CONFIG_PATH, 'w') as f:
-            json.dump(config, f, indent=4)
+        await ctx.send('Sent the new config in your dms !')
 
-        await self.display_config(ctx, config)
+        codeblock = utils.codeblock(json, lang='json')
+
+        menu = utils.Confirm(msg=codeblock + '\nconfirm changes ?', user=ctx.author)
+
+        await menu.start(ctx, channel=await ctx.author.create_dm(), wait=True)
+
+        if menu.accepted:
+            self.bot.config = env['config']
+
+        else:
+            await ctx.author.send('Cancelled the config edit')
+
 
 
 def setup(bot: core.Bot):

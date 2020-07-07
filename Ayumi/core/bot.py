@@ -16,29 +16,34 @@ You should have received a copy of the GNU Affero General Public License
 along with this program.  If not, see <https://www.gnu.org/licenses/>.
 """
 
-import sys
-import inspect
 import contextlib
 import datetime as dt
+import inspect
+import json
+import sys
+import traceback
 
+import aiofiles
 import aiohttp
-import discord
 import aioredis
+import discord
 from discord.ext import commands
 
+import main
+import orjson
 import utils
 from core import context
+
+CONFIG_PATH = 'config.json'
 
 
 class Bot(commands.Bot):
     def __init__(self, *args, **kwargs):
-        super().__init__(*args,
-                         **kwargs,
-                         command_prefix=self.get_config_prefix,
-                         max_messages=None,
-                         fetch_offline_members=False,
-                         guild_subscriptions=False,
-                         allowed_mentions=discord.AllowedMentions(everyone=False, users=False, roles=False))
+        self.load_config()
+        super().__init__(*args, **kwargs, 
+                         owner_id=self.config['discord']['owner_id'],
+                         command_prefix=self.get_config_prefix,)
+
 
     def get_config_prefix(self, bot, message: discord.Message) -> str:
         try:
@@ -47,6 +52,8 @@ class Bot(commands.Bot):
             return 'fallback '  # just in case I accidentally kill the config
 
     # -- Properties -- #
+
+    # connect to external stuff
 
     @property
     def redis(self) -> aioredis.Redis:
@@ -60,19 +67,35 @@ class Bot(commands.Bot):
     def log_webhook(self) -> discord.Webhook:
         return self._log_webhook
 
+    # config
     @property
-    def config(self) -> dict:
+    def config(self):
         return self._config
 
     @config.setter
-    def config(self, new_config: dict) -> None:
+    def config(self, new_config: dict):
+        encoded = orjson.dumps(new_config, option=orjson.OPT_INDENT_2)
+        json = encoded.decode('utf-8')
 
-        if not isinstance(new_config, dict):
-            raise TypeError("New config must be a dict")
+        with open(CONFIG_PATH, 'w') as f:
+            f.write(json)
 
-        self._config = new_config  # logging ?
+        self._config = new_config
+
+    def load_config(self) -> dict:
+        """Opens the config, used on startup"""
+        with open(CONFIG_PATH, 'r') as file:
+            json = file.read()
+            self._config = orjson.loads(json)
+
+        return self._config
+
+
 
     # -- Start / Stop -- #
+    def run(self, *args, **kwargs):
+        return super().run(self.config['discord']['token'], *args, **kwargs)
+
 
     async def connect(self, *, reconnect: bool = True):
         """Used as an async alternative init"""
@@ -131,6 +154,7 @@ class Bot(commands.Bot):
 
     async def on_error(self, event_method: str, *args, **kwargs):
         """Logs errors that were raised in events"""
+        await super().on_error(event_method, *args, **kwargs)
 
         tb = utils.format_exception(*sys.exc_info())
 
@@ -174,8 +198,12 @@ class Bot(commands.Bot):
 
         if isinstance(exception, commands.CommandNotFound):
             return
-
-        tb = utils.format_exception(*utils.exc_info(exception))
+        
+        exc_info = utils.exc_info(exception)
+        
+        traceback.print_exception(*exc_info)
+        
+        tb = utils.format_exception(*exc_info)
 
         embed = utils.Embed(title=f"{ctx.qname} - {ctx.guild.name} / {ctx.channel.name} / {ctx.author}",
 

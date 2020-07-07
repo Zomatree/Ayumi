@@ -16,14 +16,15 @@ You should have received a copy of the GNU Affero General Public License
 along with this program.  If not, see <https://www.gnu.org/licenses/>.
 """
 
-import os
 import orjson
+import os
+
+import discord
+
 import core
 
-CONFIG_PATH = 'config.json'
 
-
-def load_config() -> dict:  # we reuse this to edit the config
+def load_config():
     with open(CONFIG_PATH, 'r') as f:
         return orjson.loads(f.read())
 
@@ -36,15 +37,9 @@ if __name__ == '__main__':
         os.environ['JISHAKU_' + env] = 'True'
 
     # Bot
+    bot = core.Bot(max_messages=None,
+                   fetch_offline_members=False,
+                   guild_subscriptions=False,
+                   allowed_mentions=discord.AllowedMentions(everyone=False, users=False, roles=False))
 
-    config = load_config()
-
-    # Init
-
-    bot = core.Bot()
-
-    disc = config['discord']
-
-    bot._config = config
-    bot.owner_id = int(disc['owner_id'])
-    bot.run(disc['token'])
+    bot.run()

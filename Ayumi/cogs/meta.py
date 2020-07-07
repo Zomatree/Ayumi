@@ -47,6 +47,9 @@ class CogAndGroupHelpSource(utils.ListPageSource):
 
         self.title = title.format(entity)
 
+    @staticmethod
+    def no_ret(*args, **kwargs):
+        return None
 
     def format_page(self, menu: menus.MenuPages, page: str):
         """Formats the page into an embed"""
@@ -66,7 +69,7 @@ class CogAndGroupHelpSource(utils.ListPageSource):
 
         # we might have a cog that mixes both subclassed and default commands
 
-        examples = [getattr(c, 'get_example', lambda _: None)(menu.ctx) for c in example_commands]
+        examples = [getattr(c, 'get_example', self.no_ret)(menu.ctx) for c in example_commands]
 
         if not (filtered_examples := [*filter(None, examples)]):
             return embed
@@ -77,9 +80,6 @@ class CogAndGroupHelpSource(utils.ListPageSource):
 
 
 class HelpCommand(commands.MinimalHelpCommand):
-
-    async def send_bot_help(self, mapping):
-        await self.display_menu(self.context.bot.cogs.values())
 
 
     @staticmethod
@@ -147,7 +147,7 @@ class HelpCommand(commands.MinimalHelpCommand):
 
         menu = menus.MenuPages(source, delete_message_after=True)
 
-        await menu.start(self.context, wait=True)
+        await menu.start(self.context, channel=self.get_destination(),wait=True)
 
 
     async def send_cog_help(self, cog: commands.Cog):
@@ -158,6 +158,19 @@ class HelpCommand(commands.MinimalHelpCommand):
     async def send_group_help(self, group: commands.Group):
         title = "Here are {0.qualified_name}'s subcommands"
         await self.display_grouped_menu(title, group)
+
+    async def send_command_help(self, command: tp.Union[commands.Command, utils.AyumiCommand]):
+        embed = utils.Embed(title=self.get_command_signature(command))
+
+        embed.add_field(name='Description', value=command.help, inline=False)
+
+        embed.add_field(name='Aliases', value=', '.join(command.aliases) or 'No aliases')
+
+        example = getattr(command, 'get_example', lambda _: 'No example provided')(self.context)
+
+        embed.add_field(name='Example', value=example)
+
+        await self.get_destination().send(embed=embed)
 
 
 class CommandConverter(commands.Converter):
@@ -173,7 +186,9 @@ class Meta(commands.Cog):
     """
     Commands providing information about the myself !
     """
-    def __init__(self, bot):
+    def __init__(self, bot: core.Bot):
+        self.bot = bot
+        
         self._original_help_command = bot.help_command
 
         bot.help_command = HelpCommand()
@@ -206,9 +221,12 @@ class Meta(commands.Cog):
 
         github_link = f"{self.bot.config['github']['url']}{GITHUB_PATH}{module}#L{line_number}"
 
-        embed = (utils.Embed(title=f"Here's the source the command named \"{target}\" !", default_inline=True)
+        embed = (utils.Embed(title=f"Here's the source the command named \"{target}\" !")
+
                  .add_field(name="External view", value=f"[Github]({github_link})")
+
                  .add_field(name="Module", value=discord.utils.escape_markdown(module))
+
                  .add_field(name="Line", value=line_number))
 
         if show_full:

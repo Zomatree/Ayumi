@@ -131,8 +131,6 @@ class MyAnimeList(commands.Cog):
         """
         await ctx.send_help(ctx.command)
 
-    
-
 
     # TODO : Finish covering jikan's api and refactor the commands
 
@@ -183,8 +181,10 @@ class MyAnimeList(commands.Cog):
     def _make_mal_schedule_commands(self):
         """Adds a subcommand corresponding to each day of the week"""
         for day in utils.DAYS:
-            @self.mal_schedule.command(name=day, aliases=[day[:3]], help=f'Shows the schedule for this {day}')
-            async def mal_schedule_template(ctx: core.Context):
+            help_ = f'Shows the schedule for this {day}'
+
+            @self.mal_schedule.command(name=day, aliases=[day[:3]], help=help_, cog=self)
+            async def mal_schedule_template(self, ctx: core.Context):
                 await self._mal_schedule_handler(ctx, ctx.cname)
 
     # Season subcommands
@@ -225,13 +225,12 @@ class MyAnimeList(commands.Cog):
     def _make_mal_season_commands(self):
         """Adds a subcommand corresponding to each season of the year"""
         for season in utils.SEASONS.values():
-            @self.mal_season.command(name=season,
-
-                                     help=f"Shows the anime planning for a {season} of this year, or another",
-
-                                     example_args=[tuple(range(2000, dt.datetime.now().year))])
-
-            async def mal_season_template(ctx: core.Context, year: tp.Optional[int] = None):
+            
+            help_ = f"Shows the anime planning for a {season} of this year, or another"
+            example_args = [tuple(range(2000, dt.datetime.now().year))]
+            
+            @self.mal_season.command(name=season,help=help_, example_args=example_args, cog=self)
+            async def mal_season_template(self, ctx: core.Context, year: tp.Optional[int] = None):
 
                 year = year or dt.datetime.now().year
 
@@ -241,11 +240,8 @@ class MyAnimeList(commands.Cog):
     async def mal_season_later(self, ctx: core.Context):
         """Gets the schedule for the next seasons (use season-later to get a precise one)"""
         if raw_data := await ctx.redis.get(ctx.cache_key):
-
             data = orjson.loads(raw_data)
-
         else:
-
             data = await self.aiojikan.season_later()
             await ctx.redis.set(ctx.cache_key, orjson.dumps(data), expire=43200)
 
@@ -284,8 +280,8 @@ class MyAnimeList(commands.Cog):
 
     def _make_mal_top_subcommands(self):
         for media in ('anime', 'manga'):
-            @self.mal_top.command(name=media, help=f'Gets the top ranked {media}', example_args=[tuple(range(5))])
-            async def mal_top_template(ctx: core.Context, page: int = 0):
+            @self.mal_top.command(name=media, help=f'Gets the top ranked {media}', example_args=[tuple(range(5))], cog=self)
+            async def mal_top_template(self, ctx: core.Context, page: int = 0):
                 await self._mal_top_handler(ctx, ctx.cname, page)
 
     @mal.group(name='search', invoke_without_command=True, only_sends_help=True)
@@ -314,6 +310,9 @@ class MyAnimeList(commands.Cog):
 
     @mal.before_invoke
     async def check_mal_cooldowns(self, ctx: core.Context):
+        
+        await ctx.author.send('applied rate limits')
+        
         for cd in self.aiojikan.api_cooldowns:
             bucket = cd.get_bucket(ctx.message)
             retry_after = bucket.update_rate_limit()

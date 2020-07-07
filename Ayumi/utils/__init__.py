@@ -52,7 +52,7 @@ def format_tb_line(line: str) -> str:
 
 def format_exception(*args, **kwargs) -> str:
     """Formats an exception with traceback.format_exception, cleans up filenames and dedent it"""
- 
+
     tb_lines = traceback.format_exception(*args, **kwargs)
 
     formatted_lines = '\n'.join(map(format_tb_line, tb_lines))
@@ -63,7 +63,7 @@ def format_exception(*args, **kwargs) -> str:
 def format_arg(arg: object) -> str:
     """Returns the object's type along with it's module"""
     cls = arg.__class__
- 
+
     return cls.__name__ + " from module: " + cls.__module__
 
 
@@ -71,6 +71,8 @@ def codeblock(text: str, *, lang: str = '') -> str:
     """Returns a codeblock version of the string"""
     return f"```{lang}\n{text}\n```"
 
+
+# some menus
 
 class OnePage(menus.Menu):
     def __init__(self, msg: tp.Union[str, discord.Embed, dict], **kwargs):
@@ -97,13 +99,41 @@ class OnePage(menus.Menu):
         self.stop()
 
 
+class Confirm(OnePage, inherit_buttons=False):
+    def __init__(self, *, msg, user=None, **kwargs):
+        super().__init__(msg, **kwargs)
+        self.accepted = False
+        self.user_id = user.id
+
+
+    def reaction_check(self, payload):
+        if payload.message_id != self.message.id:
+            return False
+
+        if payload.user_id != self.user_id:
+            return False
+
+        return payload.emoji in self.buttons
+
+
+    @menus.button('\U00002705')
+    async def on_green_tick(self, payload):
+        self.accepted = True
+        self.stop()
+
+    @menus.button('\U0000274c')
+    async def on_cross_mark(self, payload):
+        self.accepted = False
+        self.stop()
+
+
 MISSING_FIELD = '⚠️ **__MISSING FIELD__**'
 
 
 class Embed(discord.Embed):
     def __init__(self, **options):
         super().__init__(**options)
- 
+
         self.default_inline = options.get('default_inline', True)
 
         if isinstance(self.colour, discord.Embed.Empty.__class__):
@@ -116,9 +146,9 @@ class Embed(discord.Embed):
 
     def add_field(self, *, name: tp.Any, value: tp.Any, inline: tp.Optional[bool] = None):
         return super().add_field(name=self.check_empty_string(name),
- 
+
                                  value=self.check_empty_string(value),
- 
+
                                  inline=self.default_inline if inline is None else inline)
 
 
@@ -136,7 +166,7 @@ def multiple_cooldowns(*cooldowns: tp.Tuple[commands.CooldownMapping]):
 
         @functools.wraps(func)
         async def wrapped(*args, **kwargs):
- 
+
             ctx = args[1] if isinstance(args[0], commands.Cog) else args[0]
 
             for cd in func.__multiple_cooldowns__:
@@ -159,7 +189,7 @@ class ListPageSource(menus.ListPageSource):
         super().__init__(entries, per_page=per_page)
 
     def get_max_pages(self):
-        first, second = self.entries
+        first, *second = self.entries
 
         if first == second:
             return 1
@@ -187,7 +217,10 @@ class AyumiCommand(commands.Command):
 
     """
     def __init__(self, *args, **kwargs):
+
         super().__init__(*args, **kwargs)
+
+        self.cog = kwargs.get('cog', None)
 
         params_amount = len(self.clean_params)
 
