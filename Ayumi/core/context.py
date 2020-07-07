@@ -19,7 +19,6 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 import functools
 import typing as tp
 import aioredis
-import collections.abc
 from discord.ext import commands
 
 

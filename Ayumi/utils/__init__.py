@@ -16,14 +16,12 @@ You should have received a copy of the GNU Affero General Public License
 along with this program.  If not, see <https://www.gnu.org/licenses/>.
 """
 
-import re
-import types
+import math
 import random
-import inspect
+import re
 import textwrap
-import functools
-import itertools
 import traceback
+import types
 import typing as tp
 
 import discord
@@ -36,7 +34,7 @@ SLASH_PATTERN = re.compile(r"/|\\")
 START_LINE_WHITESPACE = re.compile(r"^\s+")
 
 
-def exc_info(exception: Exception) -> tp.Tuple[type, Exception, types.TracebackType]:
+def exc_info(exception: Exception) -> tp.Tuple[type, Exception, types.TracebackType]:  # type: ignore
     """An equivalent of sys.exc_info() that uses an exception"""
     return exception.__class__, exception, exception.__traceback__
 
@@ -94,17 +92,16 @@ class OnePage(menus.Menu):
         else:
             raise TypeError("Expected Embed, str or dict, got " + msg.__class__.__name__)
 
-    @menus.button('\U0001f512')
-    async def on_close(self, payload: discord.RawReactionActionEvent):
+    @menus.button('\U0000274c')
+    async def on_cross_mark(self, payload: discord.RawReactionActionEvent):
         self.stop()
 
 
-class Confirm(OnePage, inherit_buttons=False):
+class Confirm(OnePage, inherit_buttons=False):  # type: ignore
     def __init__(self, *, msg, user=None, **kwargs):
         super().__init__(msg, **kwargs)
         self.accepted = False
         self.user_id = user.id
-
 
     def reaction_check(self, payload):
         if payload.message_id != self.message.id:
@@ -114,7 +111,6 @@ class Confirm(OnePage, inherit_buttons=False):
             return False
 
         return payload.emoji in self.buttons
-
 
     @menus.button('\U00002705')
     async def on_green_tick(self, payload):
@@ -151,33 +147,30 @@ class Embed(discord.Embed):
 
                                  inline=self.default_inline if inline is None else inline)
 
+    def fill_fields(self):
+        """Fill the remaining fields so they are lined up properly"""
+        inlines = len(self.fields[max(i for i, _ in enumerate(self.fields)):]) + 1
 
-def multiple_cooldowns(*cooldowns: tp.Tuple[commands.CooldownMapping]):
-    """A decorators that allows a command to have multiple cooldowns at once"""
-    def wrapper(func: types.FunctionType):
+        for _ in range(math.ceil(inlines / 3) * 3 - inlines):
+            self.add_field(name='\u200b', value='\u200b')
 
-        new_cds = list(cooldowns)
+        return self
 
-        if curr_cds := getattr(func, '__multiple_cooldowns__'):  # support to slap multiple decos
-            curr_cds.extend(new_cds)
+    def add_fields(self, *fields):
+        """Adds multiple fields at once"""
 
-        else:
-            func.__multiple_cooldowns__ = new_cds
+        for field in fields:
 
-        @functools.wraps(func)
-        async def wrapped(*args, **kwargs):
+            name, *value_and_inline = field
 
-            ctx = args[1] if isinstance(args[0], commands.Cog) else args[0]
+            if len(value_and_inline) == 2:
 
-            for cd in func.__multiple_cooldowns__:
-                if retry_after := cd.get_bucket(ctx.message).update_rate_limit():
-                    raise commands.CommandOnCooldown(cd, retry_after)
+                value, inline = value_and_inline
 
-            return await func(*args, **kwargs)
+                self.add_field(name=name, value=value, inline=inline)
 
-        return wrapped
-
-    return wrapper
+            else:
+                self.add_field(name=name, value=value_and_inline[0])
 
 
 class ListPageSource(menus.ListPageSource):
@@ -196,7 +189,9 @@ class ListPageSource(menus.ListPageSource):
 
         return super().get_max_pages()
 
+
 # Some subclassed stuff
+
 
 class AyumiCommand(commands.Command):
     """
@@ -222,8 +217,6 @@ class AyumiCommand(commands.Command):
 
         self.cog = kwargs.get('cog', None)
 
-        params_amount = len(self.clean_params)
-
         self.example_args = kwargs.get('example_args', None)
 
         self.only_sends_help = kwargs.get('only_sends_help', False)
@@ -244,6 +237,7 @@ class AyumiCommand(commands.Command):
 
         return f"{base_invocation} {formatted_args}"
 
+
 def command(name=None, cls=None, **attrs):
     """
     Copypaste of the commands.command to use our subclass
@@ -258,6 +252,7 @@ def command(name=None, cls=None, **attrs):
         return cls(func, name=name, **attrs)
 
     return decorator
+
 
 class Group(AyumiCommand, commands.Group):
     """Copypaste of the superclass to use our subclassed stuff"""
@@ -298,7 +293,9 @@ def group(name=None, **attrs):
     attrs.setdefault('cls', Group)
     return command(name=name, **attrs)
 
+
 # converters
+
 
 class LiteralConverter:
     """
@@ -349,6 +346,7 @@ class CommandConverter(commands.Converter):
             raise commands.BadArgument(f"Sorry ! I couldn't find the command named \"{arg}\"")
 
 # some consts used by the anime cog
+
 
 DAYS = 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'
 

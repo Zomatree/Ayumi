@@ -24,7 +24,6 @@ import jishaku.codeblocks
 from discord.ext import commands, menus
 
 import core
-import main
 import orjson
 import utils
 
@@ -66,8 +65,6 @@ class ExtensionSource(menus.ListPageSource):
         return embed
 
 
-
-
 class Owner(commands.Cog):
     def __init__(self, bot: core.Bot):
         self.bot = bot
@@ -75,7 +72,6 @@ class Owner(commands.Cog):
         self.make_extension_commands()
 
         bot.loop.create_task(self.load_all_extensions())
-
 
     async def cog_check(self, ctx: core.Context):
         """Owner only cog"""
@@ -98,7 +94,6 @@ class Owner(commands.Cog):
             if (query == '*' or query in ext_path.split('.')) and not exclude & {ext_path}:
 
                 yield ext_path
-
 
     @staticmethod
     def handle_extension(func: callable, extensions: tp.Iterable[str]
@@ -126,7 +121,6 @@ class Owner(commands.Cog):
             page = source.format_page(None, await source.get_page(index))
 
             await self.bot.log_webhook.send(embed=page)
-
 
     @utils.group(name='extension', aliases=['ext'], invoke_without_command=True, only_sends_help=True)
     async def extension(self, ctx: core.Context):
@@ -177,12 +171,14 @@ class Owner(commands.Cog):
     async def config_edit(self, ctx: core.Context, *, exec_string: str):
         """Edits the config file"""
 
+        _, exec_string = jishaku.codeblocks.codeblock_converter(exec_string)
+
         new_dict = self.bot.config.copy()
 
         env = {'config': new_dict}
 
         exec(exec_string, env)
-        
+
         new_config = env['config']
 
         if not isinstance(new_config, dict):
@@ -203,7 +199,6 @@ class Owner(commands.Cog):
 
         else:
             await ctx.author.send('Cancelled the config edit')
-
 
 
 def setup(bot: core.Bot):

@@ -27,7 +27,7 @@ from discord.ext import commands, menus
 import core
 import utils
 
-GITHUB_PATH = '/blob/master/'
+GITHUB_PATH = '/blob/master/Ayumi/'
 CONTAINS_COMMANDS = commands.Cog, commands.Group
 
 SPACES   = '    '
@@ -76,11 +76,10 @@ class CogAndGroupHelpSource(utils.ListPageSource):
 
         embed.add_field(name='Examples', value='\n'.join(filtered_examples))
 
-        return embed
+        return embed.fill_fields()
 
 
 class HelpCommand(commands.MinimalHelpCommand):
-
 
     @staticmethod
     def sort_by_weekdays_and_seasons(command: commands.Command) -> str:
@@ -123,14 +122,12 @@ class HelpCommand(commands.MinimalHelpCommand):
 
             yield f"{prefix}{pointer}{cname} {signature}"
 
-
             if isinstance(entity, (commands.Cog, commands.Group)):
 
                 extension = VERTICAL if pointer == T_BRANCH else SPACES
 
                 async for line in self.tree(entity, prefix=prefix + extension):
                     yield line
-
 
     async def display_grouped_menu(self, title: str, entity: tp.Union[commands.Group, commands.Cog]):
         """Handles the menu for cog and group help"""
@@ -147,26 +144,35 @@ class HelpCommand(commands.MinimalHelpCommand):
 
         menu = menus.MenuPages(source, delete_message_after=True)
 
-        await menu.start(self.context, channel=self.get_destination(),wait=True)
-
+        await menu.start(self.context, channel=self.get_destination(), wait=True)
 
     async def send_cog_help(self, cog: commands.Cog):
+        """Help for cogs"""
+
         title = "Here are the commands inside of the category {0.qualified_name}"
         await self.display_grouped_menu(title, cog)
 
-
     async def send_group_help(self, group: commands.Group):
+        """Help for groups"""
+
         title = "Here are {0.qualified_name}'s subcommands"
         await self.display_grouped_menu(title, group)
 
+    @staticmethod
+    def no_example(*args, **kwargs):
+        """Used as a callable when the command can't provide examples"""
+
+        return 'No example provided'
+
     async def send_command_help(self, command: tp.Union[commands.Command, utils.AyumiCommand]):
+        """Help for commands"""
         embed = utils.Embed(title=self.get_command_signature(command))
 
         embed.add_field(name='Description', value=command.help, inline=False)
 
         embed.add_field(name='Aliases', value=', '.join(command.aliases) or 'No aliases')
 
-        example = getattr(command, 'get_example', lambda _: 'No example provided')(self.context)
+        example = getattr(command, 'get_example', self.no_example)(self.context)
 
         embed.add_field(name='Example', value=example)
 
@@ -188,7 +194,7 @@ class Meta(commands.Cog):
     """
     def __init__(self, bot: core.Bot):
         self.bot = bot
-        
+
         self._original_help_command = bot.help_command
 
         bot.help_command = HelpCommand()
@@ -201,13 +207,15 @@ class Meta(commands.Cog):
     # -- Source -- #
     @commands.command(aliases=['src'])
     @commands.max_concurrency(1, commands.BucketType.user)
-    async def source(self, ctx: core.Context, show_full: tp.Optional[bool] = True, *,
-                     target: CommandConverter = None):
+    async def source(self, ctx: core.Context, *, target: CommandConverter = None):
         """Gets the source for a command"""
         if target is None:
             return await ctx.send(f"Drop a star to support my development !\n<{self.bot.config['github']['url']}>")
 
         callback = target.callback
+
+        if 'help' in target.name:  # special case
+            callback = self.bot.help_command.__class__
 
         try:
             source_lines, line_number = inspect.getsourcelines(callback)
@@ -221,20 +229,20 @@ class Meta(commands.Cog):
 
         github_link = f"{self.bot.config['github']['url']}{GITHUB_PATH}{module}#L{line_number}"
 
-        embed = (utils.Embed(title=f"Here's the source the command named \"{target}\" !")
+        embed = utils.Embed(title=f"""Here's the source the command named "{target}" !""")
 
-                 .add_field(name="External view", value=f"[Github]({github_link})")
+        embed.add_fields(('External view', f'[Github]({github_link})'),
+                         ('Module', discord.utils.escape_markdown(module)),
+                         ('Line', line_number))
 
-                 .add_field(name="Module", value=discord.utils.escape_markdown(module))
+        if len(source_lines) > 2000:
 
-                 .add_field(name="Line", value=line_number))
+            content = "Sorry ! The source is too long so I can only send the external view"
 
-        if show_full:
-            src = utils.codeblock(source_lines[:2000], lang='py')
-            await utils.OnePage({'embed': embed, 'content': src}).start(ctx)
+            return await ctx.send(content=content, embed=embed)
 
-        else:
-            await ctx.send(embed=embed)
+        src = utils.codeblock(source_lines, lang='py')
+        await utils.OnePage({'embed': embed, 'content': src}).start(ctx)
 
 
 def setup(bot: core.Bot):

@@ -16,17 +16,11 @@ You should have received a copy of the GNU Affero General Public License
 along with this program.  If not, see <https://www.gnu.org/licenses/>.
 """
 
-import orjson
 import os
 
 import discord
 
 import core
-
-
-def load_config():
-    with open(CONFIG_PATH, 'r') as f:
-        return orjson.loads(f.read())
 
 
 if __name__ == '__main__':

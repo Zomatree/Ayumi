@@ -17,7 +17,6 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 """
 
 import asyncio
-import random
 import collections
 import typing as tp
 import datetime as dt
@@ -34,26 +33,32 @@ BucketType = commands.BucketType
 CooldownMapping = commands.CooldownMapping
 Rating = collections.namedtuple('Rating', 'desc nsfw')
 
-ANIME_RATINGS = {
-    'G': Rating(desc='G - All ages', nsfw=False),
-    'PG': Rating(desc='Children', nsfw=False),
-    'PG-13': Rating(desc='Teens 13 or older', nsfw=False),
-    'R': Rating(desc='17+ recommended (violence & profanity)', nsfw=False),  # guess that's where we draw the line
-
-    'R+': Rating(desc='Mild nudity (may also contain violence & profanity)', nsfw=True),
-    'Rx': Rating(desc='Hentai (extreme sexual content/nudity)', nsfw=True)
-
-}
-
+NSFW_RATINGS = {'R+'}
 EXAMPLE_ANIMES = 'no game no life', 'jojo', 'pokemon'
 EXAMPLE_MANGAS = 'attack on Titan', 'demon slayer', 'death note'
 
+
 class JikanAnimeSource(menus.ListPageSource):
+    """
+    A (very) general template able to handle most
+    of jikan's data
+    """
+
+    @staticmethod
+    def check_content(data: dict) -> bool:
+        if data.get('r18', False):
+            return False
+
+        elif data.get('rated').upper() in NSFW_RATINGS:
+            return False
+
+        return True
+
     def __init__(self, footer: str, *, entries: tp.List[dict], is_nsfw: bool):
         self.footer = footer
 
         if not is_nsfw:
-            entries = [e for e in entries if not e.get('r18', False)]
+            entries = [*filter(self.check_content, entries)]
 
         super().__init__(entries, per_page=1)
 
@@ -67,17 +72,19 @@ class JikanAnimeSource(menus.ListPageSource):
             iso = dt.datetime.fromisoformat(data)
             return humanize.naturaldate(iso)
 
-        except ValueError:
+        except (ValueError, TypeError):
             return data
 
     def format_page(self, menu: menus.Menu, anime: dict):
         """An extremely lazy way to put everything together"""
 
-        title = [anime.get('title'), ]
+        title = [anime.get('title'), ]  # api is kind of inconsistant
 
-        if score := anime.get('score'):
-            title.append(f"Score : {score}")
+        if rating := anime.get('rated'):
+            title.append(f'[{rating}]')
 
+        if episodes := anime.get('episodes'):
+            title.append(f"Episodes : {episodes}")
 
         embed = utils.Embed(title=' | '.join(title),
 
@@ -88,12 +95,25 @@ class JikanAnimeSource(menus.ListPageSource):
         embed.set_footer(text=self.footer)
 
         funcs = (
+
             lambda: embed.set_thumbnail(url=anime['image_url']),
+
             lambda: embed.add_field(name='Genres', value=self.format_named_data(anime['genres'])),
+
             lambda: embed.add_field(name='Producers', value=self.format_named_data(anime['producers'])),
+
             lambda: embed.add_field(name='Licensors', value='-' + '\n-'.join(anime['licensors'])),
+
             lambda: embed.add_field(name='Rank', value=anime['rank']),
+
+            lambda: embed.add_field(name='Episodes', value=anime['episodes']),
+
+            lambda: embed.add_field(name='Score', value=anime['score']),
+
+            lambda: embed.add_field(name='Airing', value=anime['airing']),
+
             lambda: embed.add_field(name='Start date', value=self.format_date(anime['start_date'])),
+
             lambda: embed.add_field(name='End date', value=self.format_date(anime['end_date']))
         )
 
@@ -103,7 +123,7 @@ class JikanAnimeSource(menus.ListPageSource):
             except KeyError:
                 pass
 
-        return embed
+        return embed.fill_fields()
 
 
 class MyAnimeList(commands.Cog):
@@ -130,11 +150,6 @@ class MyAnimeList(commands.Cog):
         be down for an undefined period of time
         """
         await ctx.send_help(ctx.command)
-
-
-    # TODO : Finish covering jikan's api and refactor the commands
-
-    # Schedule subcommands
 
     async def _mal_schedule_handler(self, ctx: core.Context, day: str):
         """Handles the requests for schedules"""
@@ -225,11 +240,11 @@ class MyAnimeList(commands.Cog):
     def _make_mal_season_commands(self):
         """Adds a subcommand corresponding to each season of the year"""
         for season in utils.SEASONS.values():
-            
+
             help_ = f"Shows the anime planning for a {season} of this year, or another"
             example_args = [tuple(range(2000, dt.datetime.now().year))]
-            
-            @self.mal_season.command(name=season,help=help_, example_args=example_args, cog=self)
+
+            @self.mal_season.command(name=season, help=help_, example_args=example_args, cog=self)
             async def mal_season_template(self, ctx: core.Context, year: tp.Optional[int] = None):
 
                 year = year or dt.datetime.now().year
@@ -308,11 +323,10 @@ class MyAnimeList(commands.Cog):
 
         await menus.MenuPages(source, delete_message_after=True).start(ctx)
 
-    @mal.before_invoke
-    async def check_mal_cooldowns(self, ctx: core.Context):
-        
+    async def cog_before_invoke(self, ctx: core.Context):
+
         await ctx.author.send('applied rate limits')
-        
+
         for cd in self.aiojikan.api_cooldowns:
             bucket = cd.get_bucket(ctx.message)
             retry_after = bucket.update_rate_limit()

@@ -19,17 +19,14 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 import contextlib
 import datetime as dt
 import inspect
-import json
 import sys
 import traceback
 
-import aiofiles
 import aiohttp
 import aioredis
 import discord
 from discord.ext import commands
 
-import main
 import orjson
 import utils
 from core import context
@@ -40,10 +37,9 @@ CONFIG_PATH = 'config.json'
 class Bot(commands.Bot):
     def __init__(self, *args, **kwargs):
         self.load_config()
-        super().__init__(*args, **kwargs, 
+        super().__init__(*args, **kwargs,
                          owner_id=self.config['discord']['owner_id'],
                          command_prefix=self.get_config_prefix,)
-
 
     def get_config_prefix(self, bot, message: discord.Message) -> str:
         try:
@@ -90,12 +86,10 @@ class Bot(commands.Bot):
 
         return self._config
 
-
-
     # -- Start / Stop -- #
+
     def run(self, *args, **kwargs):
         return super().run(self.config['discord']['token'], *args, **kwargs)
-
 
     async def connect(self, *, reconnect: bool = True):
         """Used as an async alternative init"""
@@ -138,7 +132,6 @@ class Bot(commands.Bot):
                  .add_field(name='Discord.py version', value=codeblock(discord.__version__))
 
                  .add_field(name='Default prefix', value=codeblock(disconfig['prefix'])))
-
 
         await self.log_webhook.send(content=f"<@{self.owner_id}>", embed=embed)
 
@@ -198,11 +191,11 @@ class Bot(commands.Bot):
 
         if isinstance(exception, commands.CommandNotFound):
             return
-        
+
         exc_info = utils.exc_info(exception)
-        
+
         traceback.print_exception(*exc_info)
-        
+
         tb = utils.format_exception(*exc_info)
 
         embed = utils.Embed(title=f"{ctx.qname} - {ctx.guild.name} / {ctx.channel.name} / {ctx.author}",
