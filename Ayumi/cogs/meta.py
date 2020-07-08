@@ -129,6 +129,14 @@ class HelpCommand(commands.MinimalHelpCommand):
                 async for line in self.tree(entity, prefix=prefix + extension):
                     yield line
 
+    # -- send_x_help -- #
+
+    async def send_bot_help(self, mapping):
+        embed = utils.Embed(title=f"[{self.bot.user}] here is my general help command !")
+
+        
+
+
     async def display_grouped_menu(self, title: str, entity: tp.Union[commands.Group, commands.Cog]):
         """Handles the menu for cog and group help"""
         paginator = commands.Paginator(max_size=2048)
@@ -177,7 +185,6 @@ class HelpCommand(commands.MinimalHelpCommand):
         embed.add_field(name='Example', value=example)
 
         await self.get_destination().send(embed=embed)
-
 
 class CommandConverter(commands.Converter):
     async def convert(self, ctx: core.Bot, arg: str):
