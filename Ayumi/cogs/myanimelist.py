@@ -49,7 +49,7 @@ class JikanAnimeSource(menus.ListPageSource):
         if data.get('r18', False):
             return False
 
-        elif data.get('rated').upper() in NSFW_RATINGS:
+        elif data.get('rated', '').upper() in NSFW_RATINGS:
             return False
 
         return True
